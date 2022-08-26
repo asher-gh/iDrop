@@ -6,3 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+<<<<<<< HEAD
+=======
+env_logger = "0.8"
+iced_style = "0.4"
+tensorflow = "0.18.0" # Rust language bindings for TensorFlow.
+ndarray = "0.15.4"    # An n-dimensional array for general elements and for numerics. 
+csv = "1.1.6"         # Fast CSV parsing with support for serde.
+
+[dependencies.iced]
+features = ["image", "debug", "pure", "canvas", "debug", "palette"]
+version = "0.4.2"
+>>>>>>> parent of cea3776 (feature: multiple windows)
