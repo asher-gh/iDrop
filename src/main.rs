@@ -1,48 +1,192 @@
-use iced::pure::widget::{Button, Column, Container, Row, Slider, Text, TextInput};
-use iced::pure::{button, column, pick_list, row, text, text_input, Element, Sandbox};
-use iced::{alignment, window, Canvas, Color, Font, Length, Renderer, Settings, Vector};
-
+#![allow(unused)]
+use iced::pure::widget::{
+	canvas, container, Button, Canvas, Column, Container, Image, Row, Slider, Text, TextInput,
+};
+use iced::pure::{
+	button, column, container, horizontal_rule, horizontal_space, pick_list, row, scrollable, text,
+	text_input, Element, Sandbox,
+};
+use iced::{alignment, window, Color, ContentFit, Font, Length, Settings, Space};
+use tf_prediction::predict;
 use tf_prediction::Device;
+
+use crate::graphics::Droplet;
+
 mod graphics;
 
+// Fonts
+const ICONS: Font = Font::External {
+	name: "Icons",
+	bytes: include_bytes!("../assets/fonts/fa-solid-900.otf"),
+};
+
 fn main() -> iced::Result {
-	<Application as Sandbox>::run(Settings {
-		default_font: Some(include_bytes!("../assets/fonts/Poppins-Regular.ttf")),
+	App::run(Settings {
+		default_font: Some(include_bytes!("../assets/fonts/Montserrat-Regular.ttf")),
 		antialiasing: true,
 		window: window::Settings {
-			size: (540, 480),
+			// size: (640, 480),
 			..window::Settings::default()
 		},
 		..Settings::default()
 	})
 }
 
-// moving mode1 -> Scene::Prediction and Appliction as the main loader
 #[derive(Default)]
-pub struct Application {
-	pick_list: pick_list::State<Device>,
-	selected_device: Option<Device>,
-	slider_value_f: f32,
-	slider_state_f: slider::State,
-	text_input_val: String,
-	text_input_state: text_input::State,
-	go_button: button::State,
+pub struct App {
 	can_continue: bool,
-	computed: bool,
-	result: (f32, f32, f32, f32), // minor,pbs,fluoSurf, freq
-	droplet: graphics::Droplet,
 	debug: bool,
-	scenes: SceneInfo,
+	scenes: Scenes,
+}
+
+#[derive(Clone, Debug)]
+pub enum Message {
+	BackPressed,
+	NextPressed,
+	SceneMessage(SceneMessage),
+}
+
+impl Sandbox for App {
+	type Message = Message;
+
+	fn new() -> Self {
+		App {
+			can_continue: false,
+			debug: false,
+			scenes: Scenes::new(),
+		}
+	}
+
+	fn title(&self) -> String {
+		format!("{} - iDrop", self.scenes.title())
+	}
+
+	fn update(&mut self, event: Message) {
+		match event {
+			Message::BackPressed => {
+				if self.scenes.has_previous() {
+					self.scenes.active_scene -= 1;
+				}
+			}
+			Message::NextPressed => {
+				if self.scenes.can_continue() {
+					self.scenes.active_scene += 1;
+				}
+			}
+			Message::SceneMessage(scene_event) => self.scenes.update(scene_event, &mut self.debug),
+		}
+	}
+
+	fn view(&self) -> iced::pure::Element<'_, Self::Message> {
+		let App { scenes, .. } = self;
+
+		let mut controls = row();
+
+		if scenes.has_previous() {
+			controls = controls.push(button("Back").on_press(Message::BackPressed));
+		}
+
+		controls = controls.push(horizontal_space(Length::Fill));
+
+		if scenes.can_continue() {
+			controls = controls.push(button("Next").on_press(Message::NextPressed));
+		}
+
+		let content: Element<_> = column()
+			.push(scenes.view(self.debug).map(Message::SceneMessage))
+			.push(controls)
+			.max_width(540)
+			.spacing(20)
+			.padding(20)
+			.into();
+
+		let scrollable = scrollable(
+			// container(if self.debug {
+			// 	content.explain(Color::BLACK)
+			// } else {
+			// 	content
+			// })
+			container(content).width(Length::Fill).center_x(),
+		);
+
+		container(scrollable).height(Length::Fill).center_y().into()
+	}
+
+	fn background_color(&self) -> Color {
+		Color::WHITE
+	}
+
+	fn scale_factor(&self) -> f64 {
+		1.0
+	}
+
+	fn should_exit(&self) -> bool {
+		false
+	}
+
+	fn run(settings: Settings<()>) -> Result<(), iced::Error>
+	where
+		Self: 'static + Sized,
+	{
+		<Self as iced::pure::Application>::run(settings)
+	}
 }
 
 #[derive(Default)]
-struct SceneInfo {
+struct Scenes {
 	scenes: Vec<Scene>,
 	active_scene: usize,
 }
 
-#[derive(Clone)]
-enum SceneMessage {
+impl Scenes {
+	fn new() -> Scenes {
+		Scenes {
+			scenes: vec![
+				Scene::Greeter,
+				Scene::Prediction {
+					selection: None,
+					slider_value_f: 0.0,
+					text_input_val: "".to_string(),
+					can_continue: false,
+					computed: false,
+					result: (0.0, 0.0, 0.0, 0.0),
+				},
+			],
+			active_scene: 0,
+		}
+	}
+
+	fn title(&self) -> &str {
+		self.scenes[self.active_scene].title()
+	}
+
+	fn update(&mut self, event: SceneMessage, debug: &mut bool) {
+		self.scenes[self.active_scene].update(event, debug)
+	}
+
+	fn has_previous(&self) -> bool {
+		if self.active_scene > 0 {
+			true
+		} else {
+			false
+		}
+	}
+
+	fn can_continue(&self) -> bool {
+		if self.active_scene < self.scenes.len() - 1 {
+			true
+		} else {
+			false
+		}
+	}
+
+	fn view(&self, debug: bool) -> Element<SceneMessage> {
+		self.scenes[self.active_scene].view(debug)
+	}
+}
+
+#[derive(Clone, Debug)]
+pub enum SceneMessage {
 	DeviceSelected(Device),
 	SliderChangedF(f32),
 	InputChanged(String),
@@ -54,29 +198,23 @@ enum Scene {
 	Greeter,
 	Prediction {
 		selection: Option<Device>, // keep this and discard the other state (selected_state)
-		pick_list: pick_list::State<Device>,
-		selected_device: Option<Device>,
 		slider_value_f: f32,
-		slider_state_f: slider::State,
 		text_input_val: String,
-		text_input_state: text_input::State,
-		go_button: button::State,
 		can_continue: bool,
 		computed: bool,
 		result: (f32, f32, f32, f32), // minor,pbs,fluoSurf, freq
-		droplet: graphics::Droplet,
 	},
-	Training,
-	End,
+	// Training,
+	// End,
 }
 
 impl<'a> Scene {
-	fn _update(&mut self, msg: SceneMessage, debug: &mut bool) {
+	fn update(&mut self, msg: SceneMessage, debug: &mut bool) {
 		match msg {
 			SceneMessage::DebugToggled(value) => {
-				if let Scene::Training = self {
-					*debug = value;
-				}
+				// if let Scene::Training = self {
+				// 	*debug = value;
+				// }
 			}
 			SceneMessage::DeviceSelected(device) => {
 				if let Scene::Prediction {
@@ -114,22 +252,18 @@ impl<'a> Scene {
 					text_input_val,
 					selection,
 					result,
-					droplet,
 					computed,
 					can_continue,
 					..
 				} = self
 				{
-					let major_axis = text_input_val.parse::<f32>().unwrap();
+					// let major_axis = text_input_val.parse::<f32>().unwrap();
+					let major_axis = 40.0;
 					if let Some(channel) = selection {
-						*result = match prediction::compute(major_axis, *channel) {
+						// TODO: modularise the prediction for each characteristic
+						*result = match predict(&channel, vec![major_axis]) {
 							Ok((a, b, c, d)) => (a, b, c, d),
 							Err(_) => (0.0, 0.0, 0.0, 0.0),
-						};
-
-						(*droplet).radii = Vector {
-							x: major_axis,
-							y: result.0,
 						};
 					}
 					*computed = true;
@@ -139,16 +273,16 @@ impl<'a> Scene {
 		}
 	}
 
-	fn _title(&self) -> &str {
+	fn title(&self) -> &str {
 		match self {
 			Scene::Greeter => "Welcome",
 			Scene::Prediction { .. } => "Prediction",
-			Scene::Training => "Training",
-			Scene::End => "End",
+			// Scene::Training => "Training",
+			// Scene::End => "End",
 		}
 	}
 
-	fn _can_transition(&self) -> bool {
+	fn can_transition(&self) -> bool {
 		todo!("plan when to block transitions")
 	}
 
@@ -157,76 +291,73 @@ impl<'a> Scene {
 			Scene::Greeter => Self::welcome(),
 			Scene::Prediction {
 				selection,
-				pick_list,
-				selected_device,
+				// pick_list,
+				// selected_device,
 				slider_value_f,
-				slider_state_f,
+				// slider_state_f,
 				text_input_val,
-				text_input_state,
-				go_button,
+				// text_input_state,
+				// go_button,
 				can_continue,
 				computed,
 				result,
-				droplet,
-			} => Self::prediction(
+				// droplet,
+			} => self.prediction(
 				*selection,
-				// *pick_list,
-				*selected_device,
 				*slider_value_f,
-				*slider_state_f,
-				// *text_input_val,
-				*text_input_state,
-				*go_button,
-				// *can_continue,
-				// *computed,
+				text_input_val.to_owned(),
+				*can_continue,
+				*computed,
 				*result,
-				*droplet,
+				debug,
 			),
-			Scene::Training => Self::training(),
-			Scene::End => Self::end(),
+			// Scene::Training => Self::training(),
+			// Scene::End => Self::end(),
 		}
 		.into()
 	}
 
 	fn welcome() -> Column<'a, SceneMessage> {
-		Self::container("Welcome!").push(
-            "Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit enim labore culpa sint ad nisi Lorem pariatur mollit ex esse exercitation amet. Nisi anim cupidatat excepteur officia. Reprehenderit nostrud nostrud ipsum Lorem est aliquip amet voluptate voluptate dolor minim nulla est proident. Nostrud officia pariatur ut officia. Sit irure elit esse ea nulla sunt ex occaecat reprehenderit commodo officia dolor Lorem duis laboris cupidatat officia voluptate. Culpa proident adipisicing id nulla nisi laboris ex in Lorem sunt duis officia eiusmod. Aliqua reprehenderit commodo ex non excepteur duis sunt velit enim. Voluptate laboris sint cupidatat ullamco ut ea consectetur et est culpa et culpa duis."
-            ).push("Created by Ashish")
+		Self::container("Welcome!")
+			.push(
+				"Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit enim labore
+            culpa sint ad nisi Lorem pariatur mollit ex esse exercitation amet. Nisi anim cupidatat
+            excepteur officia. Reprehenderit nostrud nostrud ipsum Lorem est aliquip amet voluptate
+            voluptate dolor minim nulla est proident. Nostrud officia pariatur ut officia. Sit
+            irure elit esse ea nulla sunt ex occaecat reprehenderit commodo officia dolor Lorem
+            duis laboris cupidatat officia voluptate. Culpa proident adipisicing id nulla nisi
+            laboris ex in Lorem sunt duis officia eiusmod. Aliqua reprehenderit commodo ex non
+            excepteur duis sunt velit enim. Voluptate laboris sint cupidatat ullamco ut ea
+            consectetur et est culpa et culpa duis.",
+			)
+			.push("Created by Ashish")
 	}
 
-	fn training() -> Column<'a, SceneMessage> {
-		todo!()
-	}
+	// fn training() -> Column<'a, SceneMessage> {
+	// todo!()
+	// }
 
-	fn debugger(debug: bool) -> Column<'a, SceneMessage> {
-		todo!()
-	}
-
-	fn end() -> Column<'a, SceneMessage> {
-		todo!()
-	}
+	// fn debugger(debug: bool) -> Column<'a, SceneMessage> {
+	// 	todo!()
+	// }
+	//
+	// fn end() -> Column<'a, SceneMessage> {
+	// 	todo!()
+	// }
 
 	fn prediction(
+		&self,
 		selection: Option<Device>,
-		// pick_list: pick_list::State<Device>,
-		selected_device: Option<Device>,
 		slider_value_f: f32,
-		// slider_state_f: slider::State,
 		text_input_val: String,
-		// text_input_state: text_input::State,
-		// go_button: button::State,
 		can_continue: bool,
 		computed: bool,
 		result: (f32, f32, f32, f32),
-		droplet: graphics::Droplet,
+		debug: bool,
 	) -> Column<'a, SceneMessage> {
-		let pick_list = pick_list(
-			&Device::ALL[..],
-			selected_device,
-			SceneMessage::DeviceSelected,
-		)
-		.placeholder("Choose a device...")
-		.padding(10);
+		let pick_list = pick_list(&Device::ALL[..], selection, SceneMessage::DeviceSelected)
+			.placeholder("Choose a device...")
+			.padding(10);
 
 		// let slider_f = Slider::new(
 		// 	&mut self.slider_state_f,
@@ -252,26 +383,32 @@ impl<'a> Scene {
 		.width(Length::Units(150));
 
 		// Controls Row
-		let mut controls = row();
+		let mut controls: Row<SceneMessage> = row();
 
 		if can_continue {
 			controls =
 				// controls.push(button(&mut self.go_button, "Go").on_press(Message::GoPressed));
-                controls.push(iced::pure::button("Go").on_press(SceneMessage::GoPressed));
+                controls.push(button("Go").on_press(SceneMessage::GoPressed));
 		}
 
-		let mut result_display = Column::new().padding(0).width(Length::Units(500));
+		// let mut result_display = Column::new().padding(0).width(Length::Units(500));
+		let mut result_display = column();
 
-		// graphical element
-		let canvas: Canvas<SceneMessage, &mut graphics::Droplet> = Canvas::new(&mut droplet)
-			.width(Length::Fill)
-			.height(Length::Fill);
+		let major_axis = if let Ok(x) = text_input_val.parse::<f32>() {
+			x
+		} else {
+			0.0
+		};
 
-		if let (true, Some(device)) = (computed, selected_device) {
-			let input: f32 = text_input_val.parse().unwrap();
-			let max_val = device as u32;
+		let canvas: Canvas<SceneMessage, Droplet> = Canvas::new(Droplet {
+			radii: (major_axis, result.0),
+		});
 
-			let out_msg: (Text, Text, Text) = if input <= max_val as f32 {
+		if let (true, Some(device)) = (computed, selection) {
+			// let input: f32 = text_input_val.parse().unwrap();
+			let max_val = device.max_value();
+
+			let out_msg: (Text, Text, Text) = if major_axis <= max_val as f32 {
 				(
 					Text::new(format!(
 						"{:.2} µL/min",
@@ -306,37 +443,34 @@ impl<'a> Scene {
 				)
 			};
 
-			// println!(
-			// 	"
-			// input: {}
-			// max: {}
-			// device: {}",
-			// 	input, max_val, device
-			// );
-
 			result_display = result_display.push(
-				Row::new()
-					.push(Column::new().width(Length::Units(150)).push(canvas))
+				row()
 					.push(
-						Column::new()
+						container(canvas.width(Length::Units(200)).height(Length::Units(200)))
+							.center_x(), // .padding(10),
+					)
+					.push(horizontal_space(Length::Fill))
+					.push(
+						column()
+							.max_width(250)
 							.push(
-								Row::new()
+								row()
 									.push(icon('\u{f043}'))
 									.push(Text::new(" PBS"))
 									.push(Space::with_width(Length::Fill))
 									.push(out_msg.0),
 							)
-							.push(Rule::horizontal(10))
+							.push(horizontal_rule(5))
 							.push(
-								Row::new()
+								row()
 									.push(icon('\u{F043}'))
 									.push(Text::new(" FluoSurf"))
 									.push(Space::with_width(Length::Fill))
 									.push(out_msg.1),
 							)
-							.push(Rule::horizontal(10))
+							.push(horizontal_rule(5))
 							.push(
-								Row::new()
+								row()
 									.push(icon('\u{f83e}'))
 									.push(Text::new(" Frequency"))
 									.push(Space::with_width(Length::Fill))
@@ -346,9 +480,11 @@ impl<'a> Scene {
 			);
 		}
 
-		let content: _ = Column::new()
+		let mut content: Column<SceneMessage> = column();
+
+		content = content
 			.push(
-				Row::new()
+				row()
 					.push(logo(75, ContentFit::Contain))
 					.push(Space::with_width(Length::Fill))
 					.push(
@@ -361,7 +497,7 @@ impl<'a> Scene {
 			.push(Text::new(
 				"Please select a channel and enter the major dimension.",
 			))
-			.spacing(20)
+			.spacing(14)
 			.push(
 				Row::new()
 					.push(pick_list)
@@ -376,30 +512,33 @@ impl<'a> Scene {
 					.push(controls),
 			)
 			.spacing(20)
-			.push(
-				Row::new()
-					.push(Text::new("Frequency").width(Length::Units(140)))
-					.spacing(10)
-					.push(slider_f.width(Length::Units(140)))
-					.spacing(10)
-					.push(Text::new(format!("{}", self.slider_value_f))),
-			)
-			.push(Rule::horizontal(20))
+			// .push(
+			// 	Row::new()
+			// 		.push(Text::new("Frequency").width(Length::Units(140)))
+			// 		.spacing(10)
+			// 		.push(slider_f.width(Length::Units(140)))
+			// 		.spacing(10)
+			// 		.push(Text::new(format!("{}", self.slider_value_f))),
+			// )
+			.push(horizontal_rule(10))
 			.push(result_display);
 
-		let content: Element<_> = content.into();
+		// let content: Element<_> = content.into();
 
-		let content = if *&self.debug {
-			content.explain(Color::BLACK)
-		} else {
-			content
-		};
+		// let content = if debug {
+		// 	content.explain(Color::BLACK)
+		//               content.explain
+		// } else {
+		// 	content
+		// };
 
-		Container::new(content)
-			.padding(20)
-			.width(Length::Fill)
-			.height(Length::Fill)
-			.into()
+		// Container::new(content)
+		// 	.padding(20)
+		// 	.width(Length::Fill)
+		// 	.height(Length::Fill)
+		// 	.into()
+
+		content
 	}
 
 	fn container(title: &str) -> Column<'a, SceneMessage> {
@@ -407,277 +546,7 @@ impl<'a> Scene {
 	}
 }
 
-// ----------OLD IMPLEMENTATION STARTS HERE----------
-
-// Fonts
-const ICONS: Font = Font::External {
-	name: "Icons",
-	bytes: include_bytes!("../assets/fonts/fa-solid-900.ttf"),
-};
-
-#[derive(Debug, Clone)]
-pub enum Message {
-	DeviceSelected(Device),
-	SliderChangedF(f32),
-	InputChanged(String),
-	DebugToggled(bool),
-	GoPressed,
-}
-
-impl Sandbox for Application {
-	type Message = Message;
-
-	fn new() -> Self {
-		Self { ..Self::default() }
-	}
-
-	fn title(&self) -> String {
-		String::from("Mode 1")
-	}
-
-	fn update(&mut self, message: Self::Message) {
-		match message {
-			Message::DeviceSelected(device) => {
-				self.selected_device = Some(device);
-				self.can_continue = true;
-				self.computed = false;
-			}
-			Message::SliderChangedF(value) => self.slider_value_f = value,
-			Message::InputChanged(value) => {
-				self.text_input_val = value;
-				self.can_continue = true;
-				self.computed = false;
-			}
-			Message::GoPressed => {
-				let major_axis = &self.text_input_val.parse::<f32>().unwrap();
-				if let Some(channel) = self.selected_device {
-					self.result = match prediction::compute(*major_axis, channel) {
-						Ok((a, b, c, d)) => {
-							println!("minor: {}", a);
-							(a, b, c, d)
-						}
-						Err(_) => (0.0, 0.0, 0.0, 0.0),
-					};
-
-					self.droplet.radii = Vector {
-						x: *major_axis,
-						y: self.result.0,
-					};
-				}
-				self.computed = true;
-				self.can_continue = false;
-			}
-			Message::DebugToggled(_) => todo!(),
-		}
-	}
-
-	fn view(&mut self) -> Element<Message> {
-		let pick_list = PickList::new(
-			&mut self.pick_list,
-			&Device::ALL[..],
-			self.selected_device,
-			Message::DeviceSelected,
-		)
-		.placeholder("Choose a device...")
-		.padding(10);
-
-		let slider_f = Slider::new(
-			&mut self.slider_state_f,
-			0.0..=100.0,
-			self.slider_value_f,
-			Message::SliderChangedF,
-		);
-
-		fn icon(unicode: char) -> Text {
-			Text::new(unicode.to_string())
-				.font(ICONS)
-				.width(Length::Units(20))
-				.horizontal_alignment(alignment::Horizontal::Center)
-				.size(20)
-		}
-
-		let text_input = TextInput::new(
-			&mut self.text_input_state,
-			"Major Dimension",
-			&self.text_input_val,
-			Message::InputChanged,
-		)
-		.padding(10)
-		.width(Length::Units(150));
-
-		// Controls Row
-		let mut controls = Row::new();
-
-		if self.can_continue {
-			controls =
-				controls.push(button(&mut self.go_button, "Go").on_press(Message::GoPressed));
-		}
-
-		let mut result_display = Column::new().padding(0).width(Length::Units(500));
-
-		// graphical element
-		let canvas: Canvas<Message, &mut graphics::Droplet> = Canvas::new(&mut self.droplet)
-			.width(Length::Fill)
-			.height(Length::Fill);
-
-		if let (true, Some(selected_device)) = (self.computed, self.selected_device) {
-			let input: f32 = self.text_input_val.parse().unwrap();
-			let max_val = selected_device as u32;
-
-			let out_msg: (Text, Text, Text) = if input <= max_val as f32 {
-				(
-					Text::new(format!(
-						"{:.2} µL/min",
-						if self.result.1.is_sign_negative() {
-							0.0
-						} else {
-							self.result.1
-						}
-					)),
-					Text::new(format!(
-						"{:.2} µL/min",
-						if self.result.2.is_sign_negative() {
-							0.0
-						} else {
-							self.result.2
-						}
-					)),
-					Text::new(format!(
-						"{:.2} ",
-						if self.result.3.is_sign_negative() {
-							0.0
-						} else {
-							self.result.3
-						}
-					)),
-				)
-			} else {
-				(
-					Text::new("INVALID".to_owned()),
-					Text::new("INVALID".to_owned()),
-					Text::new("INVALID".to_owned()),
-				)
-			};
-
-			println!(
-				"
-                     input: {}
-                     max: {}
-                     device: {}",
-				input, max_val, selected_device
-			);
-
-			result_display = result_display.push(
-				Row::new()
-					.push(Column::new().width(Length::Units(150)).push(canvas))
-					.push(
-						Column::new()
-							.push(
-								Row::new()
-									.push(icon('\u{f043}'))
-									.push(Text::new(" PBS"))
-									.push(Space::with_width(Length::Fill))
-									.push(out_msg.0),
-							)
-							.push(Rule::horizontal(10))
-							.push(
-								Row::new()
-									.push(icon('\u{F043}'))
-									.push(Text::new(" FluoSurf"))
-									.push(Space::with_width(Length::Fill))
-									.push(out_msg.1),
-							)
-							.push(Rule::horizontal(10))
-							.push(
-								Row::new()
-									.push(icon('\u{f83e}'))
-									.push(Text::new(" Frequency"))
-									.push(Space::with_width(Length::Fill))
-									.push(out_msg.2),
-							),
-					),
-			);
-		}
-
-		let content: _ = Column::new()
-			.push(
-				Row::new()
-					.push(logo(75, ContentFit::Contain))
-					.push(Space::with_width(Length::Fill))
-					.push(
-						Text::new("Mode 1")
-							.size(30)
-							.height(Length::Units(45))
-							.vertical_alignment(alignment::Vertical::Center),
-					),
-			)
-			.push(Text::new(
-				"Please select a channel and enter the major dimension.",
-			))
-			.spacing(20)
-			.push(
-				Row::new()
-					.push(pick_list)
-					.spacing(20)
-					.push(
-						Row::new().spacing(5).push(text_input).push(
-							Text::new("µm")
-								.height(Length::Units(40))
-								.vertical_alignment(alignment::Vertical::Bottom),
-						),
-					)
-					.push(controls),
-			)
-			.spacing(20)
-			.push(
-				Row::new()
-					.push(Text::new("Frequency").width(Length::Units(140)))
-					.spacing(10)
-					.push(slider_f.width(Length::Units(140)))
-					.spacing(10)
-					.push(Text::new(format!("{}", self.slider_value_f))),
-			)
-			.push(Rule::horizontal(20))
-			.push(result_display);
-
-		let content: Element<_> = content.into();
-
-		let content = if *&self.debug {
-			content.explain(Color::BLACK)
-		} else {
-			content
-		};
-
-		Container::new(content)
-			.padding(20)
-			.width(Length::Fill)
-			.height(Length::Fill)
-			.into()
-	}
-
-	fn background_color(&self) -> Color {
-		Color::WHITE
-	}
-
-	fn scale_factor(&self) -> f64 {
-		1.0
-	}
-
-	fn should_exit(&self) -> bool {
-		false
-	}
-
-	fn run(settings: Settings<()>) -> Result<(), iced::Error>
-	where
-		Self: 'static + Sized,
-	{
-		<Self as iced::Application>::run(settings)
-	}
-}
-
-// Device to populate the picklist
-
-fn logo<'a>(height: u16, content_fit: ContentFit) -> Container<'a, Message> {
+fn logo<'a>(height: u16, content_fit: ContentFit) -> Container<'a, SceneMessage> {
 	Container::new(
 		// This should go away once we unify resource loading on native platforms
 		if cfg!(target_arch = "wasm32") {
@@ -694,11 +563,3 @@ fn logo<'a>(height: u16, content_fit: ContentFit) -> Container<'a, Message> {
 	.width(Length::Fill)
 	// .center_x()
 }
-
-fn button<'a, Message: Clone>(state: &'a mut button::State, label: &str) -> Button<'a, Message> {
-	Button::new(
-		state,
-		Text::new(label).horizontal_alignment(alignment::Horizontal::Center),
-	)
-	.padding(12)
-	.width(Length::Units(100))

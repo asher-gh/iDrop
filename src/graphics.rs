@@ -1,87 +1,54 @@
-use iced::canvas::{self, Cache, Canvas, Cursor, Geometry, Path};
-use iced::{mouse, Color, Container, Element, Length, Rectangle, Sandbox, Vector};
+use iced::canvas::{Cursor, Frame, Geometry, Path};
+use iced::pure::widget::canvas::{self, Program};
+use iced::{Color, Rectangle, Vector};
 
-#[derive(Default)]
+use crate::SceneMessage;
+
+// First, we define the data we need for drawing
+#[derive(Debug)]
 pub struct Droplet {
-	droplet: Cache,
-	pub radii: Vector,
+	pub radii: (f32, f32),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Message {}
+// Then, we implement the `Program` trait
+impl Program<SceneMessage> for Droplet {
+	type State = ();
 
-impl Sandbox for Droplet {
-	type Message = Message;
+	fn draw(&self, state: &Self::State, bounds: Rectangle, _cursor: Cursor) -> Vec<Geometry> {
+		// We prepare a new `Frame`
+		let mut frame = Frame::new(bounds.size());
+		let center = frame.center();
+		let width = frame.width() / 2.0;
+		let height = frame.height();
 
-	fn new() -> Self {
-		Droplet {
-			..Default::default()
-		}
-	}
+		// let (mut x, mut y) = self.radii;
+		let (mut x, mut y) = (80.0f32, 70.0f32);
 
-	fn title(&self) -> String {
-		String::from("Clock - Iced")
-	}
+		let aspect = x / y; //1
 
-	fn view(&mut self) -> Element<Message> {
-		let canvas = Canvas::new(self).width(Length::Fill).height(Length::Fill);
-
-		Container::new(canvas)
-			.width(Length::Fill)
-			.height(Length::Fill)
-			.padding(20)
-			.into()
-	}
-
-	fn update(&mut self, _message: Self::Message) {}
-}
-
-impl<Message> canvas::Program<Message> for Droplet {
-	fn draw(&self, bounds: Rectangle, _cursor: Cursor) -> Vec<Geometry> {
-		let geometry = self.droplet.draw(bounds.size(), |frame| {
-			let center = frame.center();
-			let Vector { mut x, mut y } = self.radii;
-			let width = bounds.width / 2.0;
-			let aspect = x / y;
-
-			if x.is_normal() {
-				if aspect >= 1.0 {
-					x = width;
-					y = width / aspect;
-				} else {
-					x = aspect * width;
-					y = width;
-				}
+		if x.is_normal() {
+			if aspect > 1_f32 {
+				y = width;
+				x = width / aspect;
+			} else {
+				x = width;
+				y = width / aspect;
 			}
+		}
 
-			let background = Path::new(|path| {
-				path.ellipse(canvas::path::arc::Elliptical {
-					center,
-					radii: Vector { x, y },
-					start_angle: 0.0,
-					end_angle: 2.0 * std::f32::consts::PI,
-					rotation: std::f32::consts::FRAC_PI_2,
-				})
-			});
-
-			frame.fill(&background, Color::from_rgb8(0x12, 0x93, 0xD8));
-
-			frame.translate(Vector::new(center.x, center.y));
+		let background = Path::new(|path| {
+			path.ellipse(canvas::path::arc::Elliptical {
+				center,
+				radii: Vector { x, y },
+				start_angle: 0.0,
+				end_angle: 2.0 * std::f32::consts::PI,
+				rotation: std::f32::consts::FRAC_PI_2,
+			})
 		});
 
-		vec![geometry]
-	}
+		frame.fill(&background, Color::from_rgb8(0x12, 0x93, 0xD8));
 
-	fn update(
-		&mut self,
-		_event: canvas::Event,
-		_bounds: Rectangle,
-		_cursor: Cursor,
-	) -> (canvas::event::Status, Option<Message>) {
-		(canvas::event::Status::Ignored, None)
-	}
-
-	fn mouse_interaction(&self, _bounds: Rectangle, _cursor: Cursor) -> mouse::Interaction {
-		mouse::Interaction::default()
+		// Finally, we produce the geometry
+		vec![frame.into_geometry()]
 	}
 }
