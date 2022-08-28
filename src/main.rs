@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-fn main() {
-	println!("Hello, world!");
-=======
 use iced::pure::widget::{Button, Column, Container, Row, Slider, Text, TextInput};
 use iced::pure::{button, column, pick_list, row, text, text_input, Element, Sandbox};
 use iced::{alignment, window, Canvas, Color, Font, Length, Renderer, Settings, Vector};
@@ -706,5 +702,3 @@ fn button<'a, Message: Clone>(state: &'a mut button::State, label: &str) -> Butt
 	)
 	.padding(12)
 	.width(Length::Units(100))
->>>>>>> parent of cea3776 (feature: multiple windows)
-}

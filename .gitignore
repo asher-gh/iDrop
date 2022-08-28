@@ -1,1 +1,7 @@
-/target
+/target/
+
+Cargo.lock
+
+**/*.rs.bak
+
+.DS_Store
