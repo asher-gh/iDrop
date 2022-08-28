@@ -2,7 +2,7 @@ use iced::pure::widget::{Button, Column, Container, Row, Slider, Text, TextInput
 use iced::pure::{button, column, pick_list, row, text, text_input, Element, Sandbox};
 use iced::{alignment, window, Canvas, Color, Font, Length, Renderer, Settings, Vector};
 
-use prediction::device::Device;
+use tf_prediction::Device;
 mod graphics;
 
 fn main() -> iced::Result {
