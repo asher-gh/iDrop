@@ -1,14 +1,14 @@
 #![allow(unused)]
 use iced::pure::widget::{
-	canvas, container, Button, Canvas, Column, Container, Image, Row, Slider, Text, TextInput,
+	canvas, container, Button, Canvas, Column, Container, Image, PickList, Row, Slider, Text,
+	TextInput,
 };
 use iced::pure::{
-	button, column, container, horizontal_rule, horizontal_space, pick_list, row, scrollable, text,
-	text_input, Element, Sandbox,
+	button, column, container, horizontal_rule, horizontal_space, pick_list, row, scrollable,
+	slider, text, text_input, Element, Sandbox,
 };
-use iced::{alignment, window, Color, ContentFit, Font, Length, Settings, Space};
-use tf_prediction::predict;
-use tf_prediction::Device;
+use iced::{alignment, pick_list, window, Color, ContentFit, Font, Length, Settings, Space};
+use prediction::{compute, load_model, Device, Model};
 
 use crate::graphics::Droplet;
 
@@ -24,10 +24,6 @@ fn main() -> iced::Result {
 	App::run(Settings {
 		default_font: Some(include_bytes!("../assets/fonts/Montserrat-Regular.ttf")),
 		antialiasing: true,
-		window: window::Settings {
-			// size: (640, 480),
-			..window::Settings::default()
-		},
 		..Settings::default()
 	})
 }
@@ -52,7 +48,7 @@ impl Sandbox for App {
 	fn new() -> Self {
 		App {
 			can_continue: false,
-			debug: false,
+			debug: true,
 			scenes: Scenes::new(),
 		}
 	}
@@ -150,6 +146,7 @@ impl Scenes {
 					can_continue: false,
 					computed: false,
 					result: (0.0, 0.0, 0.0, 0.0),
+					models: None,
 				},
 			],
 			active_scene: 0,
@@ -188,7 +185,7 @@ impl Scenes {
 #[derive(Clone, Debug)]
 pub enum SceneMessage {
 	DeviceSelected(Device),
-	SliderChangedF(f32),
+	SliderChanged(f32),
 	InputChanged(String),
 	DebugToggled(bool),
 	GoPressed,
@@ -197,12 +194,13 @@ pub enum SceneMessage {
 enum Scene {
 	Greeter,
 	Prediction {
-		selection: Option<Device>, // keep this and discard the other state (selected_state)
+		selection: Option<Device>,
 		slider_value_f: f32,
 		text_input_val: String,
 		can_continue: bool,
 		computed: bool,
-		result: (f32, f32, f32, f32), // minor,pbs,fluoSurf, freq
+		models: Option<(Model, Model, Model)>, // (sec_dim, flow, freq)
+		result: (f32, f32, f32, f32),          // (minor, pbs, fluoSurf, freq)
 	},
 	// Training,
 	// End,
@@ -221,17 +219,60 @@ impl<'a> Scene {
 					selection,
 					can_continue,
 					computed,
+					models,
 					..
 				} = self
 				{
+					// let models_location = "assets/models/trained_models/";
+
+					// let sec_dim_model_dir = "model_secondnumberdevice2";
+					// let flow_model_dir = "newermodelrr170510256WITHDROPOUT0.3MOSTFINALWITHOUTFREQ";
+					// let freq_model_dir =
+					// 	"newermodelrr170510256WITHDROPOUT0.3MOSTFINALWITHFREQPREDICT";
+
+					let model_path = device.model_path();
+
+					let sec_dim_model_dir = model_path.sec_dim;
+					let flow_model_dir = model_path.flow;
+					let freq_model_dir = model_path.freq;
+
+					let sec_dim_model = load_model(&sec_dim_model_dir);
+					let flow_model = load_model(&flow_model_dir);
+					let freq_model = load_model(&freq_model_dir);
+
 					*selection = Some(device);
 					*can_continue = true;
 					*computed = false;
+					*models = Some((sec_dim_model, flow_model, freq_model));
 				}
 			}
-			SceneMessage::SliderChangedF(value) => {
-				if let Scene::Prediction { slider_value_f, .. } = self {
+			SceneMessage::SliderChanged(value) => {
+				if let Scene::Prediction {
+					selection,
+					slider_value_f,
+					text_input_val,
+					models,
+					result,
+					..
+				} = self
+				{
 					*slider_value_f = value;
+					*text_input_val = value.to_string();
+
+					if let (Some(models), Some(channel)) = (models, selection) {
+						// TODO: modularise the prediction for each characteristic
+						// *result = match predict(&channel, vec![major_axis]) {
+						// 	Ok((a, b, c, d)) => (a, b, c, d),
+						// 	Err(_) => (0.0, 0.0, 0.0, 0.0),
+						// };
+						*result = match compute(value, &models.0, &models.1, &models.2) {
+							Ok(metrics) => {
+								println!("ratio: {}", value / metrics.0);
+								metrics
+							}
+							Err(_) => (0.0, 0.0, 0.0, 0.0),
+						}
+					}
 				}
 			}
 			SceneMessage::InputChanged(value) => {
@@ -254,17 +295,22 @@ impl<'a> Scene {
 					result,
 					computed,
 					can_continue,
+					models,
 					..
 				} = self
 				{
-					// let major_axis = text_input_val.parse::<f32>().unwrap();
-					let major_axis = 40.0;
-					if let Some(channel) = selection {
+					let major_axis = text_input_val.parse::<f32>().unwrap();
+
+					if let (Some(channel), Some(models)) = (selection, models) {
 						// TODO: modularise the prediction for each characteristic
-						*result = match predict(&channel, vec![major_axis]) {
-							Ok((a, b, c, d)) => (a, b, c, d),
+						// *result = match predict(&channel, vec![major_axis]) {
+						// 	Ok((a, b, c, d)) => (a, b, c, d),
+						// 	Err(_) => (0.0, 0.0, 0.0, 0.0),
+						// };
+						*result = match compute(major_axis, &models.0, &models.1, &models.2) {
+							Ok(metrics) => metrics,
 							Err(_) => (0.0, 0.0, 0.0, 0.0),
-						};
+						}
 					}
 					*computed = true;
 					*can_continue = false;
@@ -291,17 +337,12 @@ impl<'a> Scene {
 			Scene::Greeter => Self::welcome(),
 			Scene::Prediction {
 				selection,
-				// pick_list,
-				// selected_device,
 				slider_value_f,
-				// slider_state_f,
 				text_input_val,
-				// text_input_state,
-				// go_button,
 				can_continue,
 				computed,
 				result,
-				// droplet,
+				..
 			} => self.prediction(
 				*selection,
 				*slider_value_f,
@@ -359,12 +400,14 @@ impl<'a> Scene {
 			.placeholder("Choose a device...")
 			.padding(10);
 
-		// let slider_f = Slider::new(
-		// 	&mut self.slider_state_f,
-		// 	0.0..=100.0,
-		// 	self.slider_value_f,
-		// 	Message::SliderChangedF,
-		// );
+		let slider_f = Slider::new(
+			// &mut self.slider_state_f,
+			10.0..=250.0,
+			slider_value_f,
+			SceneMessage::SliderChanged,
+		);
+
+		// let slider_f = slider(50..=150, slider_value_f as i32, SceneMessage::SliderChanged(f32 as i32));
 
 		fn icon(unicode: char) -> Text {
 			Text::new(unicode.to_string())
@@ -404,42 +447,37 @@ impl<'a> Scene {
 			radii: (major_axis, result.0),
 		});
 
-		if let (true, Some(device)) = (computed, selection) {
+		if let Some(device) = selection {
 			// let input: f32 = text_input_val.parse().unwrap();
 			let max_val = device.max_value();
 
 			let out_msg: (Text, Text, Text) = if major_axis <= max_val as f32 {
-				(
-					Text::new(format!(
-						"{:.2} µL/min",
-						if result.1.is_sign_negative() {
-							0.0
-						} else {
-							result.1
-						}
-					)),
-					Text::new(format!(
-						"{:.2} µL/min",
-						if result.2.is_sign_negative() {
-							0.0
-						} else {
-							result.2
-						}
-					)),
-					Text::new(format!(
-						"{:.2} ",
-						if result.3.is_sign_negative() {
-							0.0
-						} else {
-							result.3
-						}
-					)),
-				)
+				let (.., pbs, fluo, freq) = result;
+
+				let pbs = if pbs.is_sign_negative() {
+					Text::new("NEG VAL".to_string()).color(Color::from_rgb8(255, 0, 0))
+				} else {
+					Text::new(format!("{:2}", pbs))
+				};
+
+				let fluo = if fluo.is_sign_negative() {
+					Text::new("NEG VAL".to_string()).color(Color::from_rgb8(255, 0, 0))
+				} else {
+					Text::new(format!("{:2}", fluo))
+				};
+
+				let freq = if freq.is_sign_negative() {
+					Text::new("NEG VAL".to_string()).color(Color::from_rgb8(255, 0, 0))
+				} else {
+					Text::new(format!("{:2}", freq))
+				};
+
+				(pbs, fluo, freq)
 			} else {
 				(
-					Text::new("INVALID".to_owned()),
-					Text::new("INVALID".to_owned()),
-					Text::new("INVALID".to_owned()),
+					Text::new("INVALID INPUT".to_owned()).color(Color::from_rgb8(255, 0, 0)),
+					Text::new("INVALID INPUT".to_owned()).color(Color::from_rgb8(255, 0, 0)),
+					Text::new("INVALID INPUT".to_owned()).color(Color::from_rgb8(255, 0, 0)),
 				)
 			};
 
@@ -452,11 +490,11 @@ impl<'a> Scene {
 					.push(horizontal_space(Length::Fill))
 					.push(
 						column()
-							.max_width(250)
+							.max_width(350)
 							.push(
 								row()
 									.push(icon('\u{f043}'))
-									.push(Text::new(" PBS"))
+									.push(Text::new("PBS (µL/min)"))
 									.push(Space::with_width(Length::Fill))
 									.push(out_msg.0),
 							)
@@ -464,7 +502,7 @@ impl<'a> Scene {
 							.push(
 								row()
 									.push(icon('\u{F043}'))
-									.push(Text::new(" FluoSurf"))
+									.push(Text::new("FluoSurf (µL/min)"))
 									.push(Space::with_width(Length::Fill))
 									.push(out_msg.1),
 							)
@@ -472,7 +510,7 @@ impl<'a> Scene {
 							.push(
 								row()
 									.push(icon('\u{f83e}'))
-									.push(Text::new(" Frequency"))
+									.push(Text::new("Frequency (Hz)"))
 									.push(Space::with_width(Length::Fill))
 									.push(out_msg.2),
 							),
@@ -481,6 +519,8 @@ impl<'a> Scene {
 		}
 
 		let mut content: Column<SceneMessage> = column();
+
+		let mut content = Column::new();
 
 		content = content
 			.push(
@@ -511,6 +551,7 @@ impl<'a> Scene {
 					)
 					.push(controls),
 			)
+			.push(slider_f)
 			.spacing(20)
 			// .push(
 			// 	Row::new()
@@ -527,7 +568,6 @@ impl<'a> Scene {
 
 		// let content = if debug {
 		// 	content.explain(Color::BLACK)
-		//               content.explain
 		// } else {
 		// 	content
 		// };
