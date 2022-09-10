@@ -1,13 +1,9 @@
-#![allow(unused)]
-use iced::pure::widget::{
-	canvas, container, Button, Canvas, Column, Container, Image, PickList, Row, Slider, Text,
-	TextInput,
-};
+use iced::pure::widget::{Canvas, Column, Container, Image, Row, Slider, Text};
 use iced::pure::{
-	button, column, container, horizontal_rule, horizontal_space, pick_list, row, scrollable,
-	slider, text, text_input, Element, Sandbox,
+	button, column, container, horizontal_rule, horizontal_space, pick_list, row, scrollable, text,
+	text_input, Element, Sandbox,
 };
-use iced::{alignment, pick_list, window, Color, ContentFit, Font, Length, Settings, Space};
+use iced::{alignment, Color, ContentFit, Font, Length, Settings, Space};
 use prediction::{compute, load_model, Device, Model};
 
 use crate::graphics::Droplet;
@@ -30,7 +26,7 @@ fn main() -> iced::Result {
 
 #[derive(Default)]
 pub struct App {
-	can_continue: bool,
+	_can_continue: bool,
 	debug: bool,
 	scenes: Scenes,
 }
@@ -47,7 +43,7 @@ impl Sandbox for App {
 
 	fn new() -> Self {
 		App {
-			can_continue: false,
+			_can_continue: false,
 			debug: true,
 			scenes: Scenes::new(),
 		}
@@ -207,9 +203,9 @@ enum Scene {
 }
 
 impl<'a> Scene {
-	fn update(&mut self, msg: SceneMessage, debug: &mut bool) {
+	fn update(&mut self, msg: SceneMessage, _debug: &mut bool) {
 		match msg {
-			SceneMessage::DebugToggled(value) => {
+			SceneMessage::DebugToggled(_value) => {
 				// if let Scene::Training = self {
 				// 	*debug = value;
 				// }
@@ -259,7 +255,7 @@ impl<'a> Scene {
 					*slider_value_f = value;
 					*text_input_val = value.to_string();
 
-					if let (Some(models), Some(channel)) = (models, selection) {
+					if let (Some(models), Some(_channel)) = (models, selection) {
 						// TODO: modularise the prediction for each characteristic
 						// *result = match predict(&channel, vec![major_axis]) {
 						// 	Ok((a, b, c, d)) => (a, b, c, d),
@@ -301,7 +297,7 @@ impl<'a> Scene {
 				{
 					let major_axis = text_input_val.parse::<f32>().unwrap();
 
-					if let (Some(channel), Some(models)) = (selection, models) {
+					if let (Some(_channel), Some(models)) = (selection, models) {
 						// TODO: modularise the prediction for each characteristic
 						// *result = match predict(&channel, vec![major_axis]) {
 						// 	Ok((a, b, c, d)) => (a, b, c, d),
@@ -328,7 +324,7 @@ impl<'a> Scene {
 		}
 	}
 
-	fn can_transition(&self) -> bool {
+	fn _can_transition(&self) -> bool {
 		todo!("plan when to block transitions")
 	}
 
@@ -392,9 +388,9 @@ impl<'a> Scene {
 		slider_value_f: f32,
 		text_input_val: String,
 		can_continue: bool,
-		computed: bool,
+		_computed: bool,
 		result: (f32, f32, f32, f32),
-		debug: bool,
+		_debug: bool,
 	) -> Column<'a, SceneMessage> {
 		let pick_list = pick_list(&Device::ALL[..], selection, SceneMessage::DeviceSelected)
 			.placeholder("Choose a device...")
@@ -518,8 +514,6 @@ impl<'a> Scene {
 			);
 		}
 
-		let mut content: Column<SceneMessage> = column();
-
 		let mut content = Column::new();
 
 		content = content
@@ -601,5 +595,4 @@ fn logo<'a>(height: u16, content_fit: ContentFit) -> Container<'a, SceneMessage>
 		.content_fit(content_fit),
 	)
 	.width(Length::Fill)
-	// .center_x()
 }
