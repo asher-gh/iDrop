@@ -104,6 +104,7 @@ impl std::fmt::Display for Device {
 pub fn load_model(model_path: &str) -> Model {
 	// create a new graph
 	let mut graph = Graph::new();
+	println!("{model_path}");
 
 	let (input_param, out_param) = match model_path {
 		"model_secondnumberdevice1" => ("dense_8_input", "dense_11"),
@@ -130,7 +131,7 @@ pub fn load_model(model_path: &str) -> Model {
 		_ => panic!("Could not infer input and output parameters for the model."),
 	};
 
-	let models_location = "assets/models/trained_models/";
+	let models_location = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/models/trained_models/");
 
 	let model_path = format!("{models_location}{model_path}");
 	// load the saved model as a graph
