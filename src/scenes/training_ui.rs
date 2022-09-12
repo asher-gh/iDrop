@@ -1,278 +1,143 @@
-use iced::{
-	alignment,
-	pure::{
-		button, column, container, horizontal_rule, horizontal_space, pick_list, row, text_input,
-		widget::{Canvas, Column, Row, Slider, Text},
-	},
-	Color, ContentFit, Length, Space,
-};
-use prediction::{compute, load_model, Device, Model};
+use std::path::PathBuf;
 
-use crate::{graphics::Droplet, logo, ICONS};
+use iced::{
+	pure::{
+		button, horizontal_rule, pick_list, row, text_input, toggler,
+		widget::{Column, PickList, Row, Text},
+	},
+	ContentFit, Length, Space,
+};
+use native_dialog::FileDialog;
+
+const MESSAGE: &str = "Welcome to the model creation and training facility. Please select one of the previously created models. If you want to create a new model, check the toggle and provide a name for the model. The model will be created and trained with the provided data (CSV) and saved in the database. You can then select the model in the prediction screen and it will be available to retrain with new data next time.";
+
+use crate::logo;
 
 use super::SceneMessage;
 
-pub struct PredictionUI {
-	pub selection: Option<Device>,
-	pub slider_value_f: f32,
-	pub text_input_val: String,
-	pub can_continue: bool,
-	pub computed: bool,
-	pub models: Option<(Model, Model, Model)>, // (sec_dim, flow, freq)
-	pub result: (f32, f32, f32, f32),          // (minor, pbs, fluoSurf, freq)
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct UserModel {
+	pub name: String,
+	pub path: Option<String>,
 }
 
-impl PredictionUI {
+impl std::fmt::Display for UserModel {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.name)
+	}
+}
+
+pub struct TrainingUI {
+	pub selected_model: Option<UserModel>,
+	pub model_name: String,
+	pub new_model: bool,
+	pub data_path: Option<PathBuf>,
+	pub models: Vec<UserModel>,
+	pub creation_toggle: bool,
+}
+
+impl<'a> TrainingUI {
 	pub fn new() -> Self {
-		PredictionUI {
-			selection: None,
-			slider_value_f: 0.0,
-			text_input_val: "".to_string(),
-			can_continue: false,
-			computed: false,
-			result: (0.0, 0.0, 0.0, 0.0),
-			models: None,
+		TrainingUI {
+			selected_model: None,
+			model_name: String::new(),
+			new_model: false,
+			data_path: None,
+			models: vec![], // add persistance later
+			creation_toggle: false,
 		}
 	}
 
 	pub fn update(&mut self, msg: SceneMessage) {
 		match msg {
-			SceneMessage::DeviceSelected(device) => {
-				let model_path = device.model_path();
-
-				let sec_dim_model = load_model(&model_path.sec_dim);
-				let flow_model = load_model(&model_path.flow);
-				let freq_model = load_model(&model_path.freq);
-
-				self.selection = Some(device);
-				self.can_continue = true;
-				self.computed = false;
-				self.models = Some((sec_dim_model, flow_model, freq_model));
+			SceneMessage::ModelSelected(model) => {
+				self.selected_model = Some(model);
 			}
 
-			SceneMessage::SliderChanged(value) => {
-				self.slider_value_f = value;
-				self.text_input_val = value.to_string();
+			SceneMessage::InputChanged(value) => self.model_name = value,
 
-				if let (Some(models), Some(_channel)) = (self.models.as_ref(), self.selection) {
-					self.result = match compute(value, &models.0, &models.1, &models.2) {
-						Ok(metrics) => {
-							println!("ratio: {}", value / metrics.0);
-							metrics
-						}
-						Err(_) => (0.0, 0.0, 0.0, 0.0),
-					}
-				}
+			SceneMessage::GoPressed => {}
+
+			SceneMessage::SelectCSV => {
+				// let path = FileDialog::new()
+				// 	.set_location("~/Desktop")
+				// 	.add_filter("PNG Image", &["png"])
+				// 	.add_filter("JPEG Image", &["jpg", "jpeg"])
+				// 	.show_open_single_file()
+				// 	.unwrap();
+				//
+				// if let Some(path) = path_buf {
+				// 	println!("{:?}", path);
+				//                 self.data_path = Some(path.to_str);
+				// }
+				self.data_path = FileDialog::new()
+					.show_open_single_file()
+					.unwrap()
+					.to_owned();
 			}
 
-			SceneMessage::InputChanged(value) => {
-				self.text_input_val = value;
-				self.can_continue = true;
-				self.computed = false;
-			}
-
-			SceneMessage::GoPressed => {
-				let major_axis = self.text_input_val.parse::<f32>().unwrap();
-
-				if let Some(models) = self.models.as_ref() {
-					self.result = match compute(major_axis, &models.0, &models.1, &models.2) {
-						Ok(metrics) => metrics,
-						Err(_) => (0.0, 0.0, 0.0, 0.0),
-					}
-				}
-				self.computed = true;
-				self.can_continue = false;
-			}
+			SceneMessage::CreateToggled(value) => self.creation_toggle = value,
 
 			_ => {}
 		}
 	}
 
-	pub fn view<'a>(&self) -> Column<'a, SceneMessage> {
-		let pick_list = pick_list(
-			&Device::ALL[..],
-			self.selection,
-			SceneMessage::DeviceSelected,
+	pub fn view(&'a self) -> Column<'a, SceneMessage> {
+		// --------------------COMPONENTS--------------------
+		let pick_list: PickList<UserModel, SceneMessage> = pick_list(
+			&self.models,
+			self.selected_model.clone(),
+			SceneMessage::ModelSelected,
 		)
-		.placeholder("Choose a device...")
+		.placeholder("Pick a model")
 		.padding(10);
 
-		let slider_f = Slider::new(
-			// &mut self.slider_state_f,
-			10.0..=250.0,
-			self.slider_value_f,
-			SceneMessage::SliderChanged,
-		);
-
-		// let slider_f = slider(50..=150, slider_value_f as i32, SceneMessage::SliderChanged(f32 as i32));
+		let toggle_create: Row<SceneMessage> = row()
+			.push(toggler(
+				"Create new model".to_owned(),
+				self.creation_toggle,
+				SceneMessage::CreateToggled,
+			))
+			.width(Length::Units(200));
 
 		let text_input = text_input(
-			"Major Dimension",
-			&self.text_input_val,
+			"Provide name for new Model",
+			&self.model_name,
 			SceneMessage::InputChanged,
 		)
 		.padding(10)
-		.width(Length::Units(150));
+		.width(Length::Units(250));
 
-		// Controls Row
-		let mut controls: Row<SceneMessage> = row();
+		// let select_csv_btn: Button<SceneMessage> = Button::new("Select CSV file");
 
-		if self.can_continue {
-			controls =
-				// controls.push(button(&mut self.go_button, "Go").on_press(Message::GoPressed));
-                controls.push(button("Go").on_press(SceneMessage::GoPressed));
-		}
+		// --------------------ASSEMBLING--------------------
 
-		// let mut result_display = Column::new().padding(0).width(Length::Units(500));
-		let mut result_display = column();
+		let mut content = Column::new().height(Length::Fill);
 
-		let major_axis = if let Ok(x) = self.text_input_val.parse::<f32>() {
-			x
+		let mut controls = row()
+			.push(toggle_create)
+			.push(Space::with_width(Length::Fill));
+		// .push(Space::new(Length::Fill, Length::Fill));
+
+		if self.creation_toggle {
+			controls = controls.push(text_input);
 		} else {
-			0.0
-		};
-
-		let canvas: Canvas<SceneMessage, Droplet> = Canvas::new(Droplet {
-			radii: (major_axis, self.result.0),
-		});
-
-		if let Some(device) = self.selection {
-			// let input: f32 = text_input_val.parse().unwrap();
-			let max_val = device.max_value();
-
-			let out_msg: (Text, Text, Text) = if major_axis <= max_val as f32 {
-				let (.., pbs, fluo, freq) = self.result;
-
-				let pbs = if pbs.is_sign_negative() {
-					Text::new("NEG VAL".to_string()).color(Color::from_rgb8(255, 0, 0))
-				} else {
-					Text::new(format!("{:2}", pbs))
-				};
-
-				let fluo = if fluo.is_sign_negative() {
-					Text::new("NEG VAL".to_string()).color(Color::from_rgb8(255, 0, 0))
-				} else {
-					Text::new(format!("{:2}", fluo))
-				};
-
-				let freq = if freq.is_sign_negative() {
-					Text::new("NEG VAL".to_string()).color(Color::from_rgb8(255, 0, 0))
-				} else {
-					Text::new(format!("{:2}", freq))
-				};
-
-				(pbs, fluo, freq)
-			} else {
-				(
-					Text::new("INVALID INPUT".to_owned()).color(Color::from_rgb8(255, 0, 0)),
-					Text::new("INVALID INPUT".to_owned()).color(Color::from_rgb8(255, 0, 0)),
-					Text::new("INVALID INPUT".to_owned()).color(Color::from_rgb8(255, 0, 0)),
-				)
-			};
-
-			result_display = result_display.push(
-				row()
-					.push(
-						container(canvas.width(Length::Units(200)).height(Length::Units(200)))
-							.center_x(), // .padding(10),
-					)
-					.push(horizontal_space(Length::Fill))
-					.push(
-						column()
-							.max_width(350)
-							.push(
-								row()
-									.push(icon('\u{f043}'))
-									.push(Text::new("PBS (µL/min)"))
-									.push(Space::with_width(Length::Fill))
-									.push(out_msg.0),
-							)
-							.push(horizontal_rule(5))
-							.push(
-								row()
-									.push(icon('\u{F043}'))
-									.push(Text::new("FluoSurf (µL/min)"))
-									.push(Space::with_width(Length::Fill))
-									.push(out_msg.1),
-							)
-							.push(horizontal_rule(5))
-							.push(
-								row()
-									.push(icon('\u{f83e}'))
-									.push(Text::new("Frequency (Hz)"))
-									.push(Space::with_width(Length::Fill))
-									.push(out_msg.2),
-							),
-					),
-			);
+			controls = controls.push(pick_list);
 		}
-
-		let mut content = Column::new();
 
 		content = content
 			.push(
 				row()
-					.push(logo(75, ContentFit::Contain))
-					.push(Space::with_width(Length::Fill))
-					.push(
-						Text::new("Mode 1")
-							.size(30)
-							.height(Length::Units(45))
-							.vertical_alignment(alignment::Vertical::Center),
-					),
+					.push(logo(40, ContentFit::Contain))
+					.push(Space::with_width(Length::Fill)),
 			)
-			.push(Text::new(
-				"Please select a channel and enter the major dimension.",
-			))
-			.spacing(14)
-			.push(
-				Row::new()
-					.push(pick_list)
-					.spacing(20)
-					.push(
-						Row::new().spacing(5).push(text_input).push(
-							Text::new("µm")
-								.height(Length::Units(40))
-								.vertical_alignment(alignment::Vertical::Bottom),
-						),
-					)
-					.push(controls),
-			)
-			.push(slider_f)
+			.push(Text::new(MESSAGE))
+			.spacing(25)
+			.push(controls)
 			.spacing(20)
-			// .push(
-			// 	Row::new()
-			// 		.push(Text::new("Frequency").width(Length::Units(140)))
-			// 		.spacing(10)
-			// 		.push(slider_f.width(Length::Units(140)))
-			// 		.spacing(10)
-			// 		.push(Text::new(format!("{}", self.slider_value_f))),
-			// )
-			.push(horizontal_rule(10))
-			.push(result_display);
-
-		// let content: Element<_> = content.into();
-
-		// let content = if debug {
-		// 	content.explain(Color::BLACK)
-		// } else {
-		// 	content
-		// };
-
-		// Container::new(content)
-		// 	.padding(20)
-		// 	.width(Length::Fill)
-		// 	.height(Length::Fill)
-		// 	.into()
+			.push(button("CSV").on_press(SceneMessage::SelectCSV))
+			.push(horizontal_rule(10));
 
 		content
 	}
-}
-
-fn icon(unicode: char) -> Text {
-	Text::new(unicode.to_string())
-		.font(ICONS)
-		.width(Length::Units(20))
-		.horizontal_alignment(alignment::Horizontal::Center)
-		.size(20)
 }

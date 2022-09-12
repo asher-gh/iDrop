@@ -1,12 +1,14 @@
+#![allow(unused)]
+use drop_gui::prediction::{compute, load_model, Device, Model};
 use iced::{
 	alignment,
 	pure::{
-		button, column, container, horizontal_rule, horizontal_space, pick_list, row, text_input,
-		widget::{Canvas, Column, Row, Slider, Text},
+		button, column, container, horizontal_rule, horizontal_space, pick_list, row, slider,
+		text_input, toggler,
+		widget::{slider, Canvas, Column, Row, Slider, Text, Toggler},
 	},
 	Color, ContentFit, Length, Space,
 };
-use prediction::{compute, load_model, Device, Model};
 
 use crate::{graphics::Droplet, logo, ICONS};
 
@@ -97,15 +99,6 @@ impl PredictionUI {
 		.placeholder("Choose a device...")
 		.padding(10);
 
-		let slider_f = Slider::new(
-			// &mut self.slider_state_f,
-			10.0..=250.0,
-			self.slider_value_f,
-			SceneMessage::SliderChanged,
-		);
-
-		// let slider_f = slider(50..=150, slider_value_f as i32, SceneMessage::SliderChanged(f32 as i32));
-
 		let text_input = text_input(
 			"Major Dimension",
 			&self.text_input_val,
@@ -123,8 +116,10 @@ impl PredictionUI {
                 controls.push(button("Go").on_press(SceneMessage::GoPressed));
 		}
 
-		// let mut result_display = Column::new().padding(0).width(Length::Units(500));
-		let mut result_display = column();
+		let mut content = Column::new();
+
+		// let mut result_display:Column<> = Column::new().padding(0).width(Length::Units(500));
+		let mut result_display: Column<SceneMessage> = column();
 
 		let major_axis = if let Ok(x) = self.text_input_val.parse::<f32>() {
 			x
@@ -207,63 +202,32 @@ impl PredictionUI {
 			);
 		}
 
-		let mut content = Column::new();
+		let slider_f = slider(
+			10.0..=275.0,
+			self.slider_value_f,
+			SceneMessage::SliderChanged,
+		);
 
 		content = content
 			.push(
 				row()
 					.push(logo(75, ContentFit::Contain))
-					.push(Space::with_width(Length::Fill))
-					.push(
-						Text::new("Mode 1")
-							.size(30)
-							.height(Length::Units(45))
-							.vertical_alignment(alignment::Vertical::Center),
-					),
+					.push(Space::with_width(Length::Fill)), // .push(Text::new("Model Creation and Training")),
 			)
-			.push(Text::new(
-				"Please select a channel and enter the major dimension.",
-			))
 			.spacing(14)
 			.push(
-				Row::new()
-					.push(pick_list)
-					.spacing(20)
-					.push(
-						Row::new().spacing(5).push(text_input).push(
-							Text::new("µm")
-								.height(Length::Units(40))
-								.vertical_alignment(alignment::Vertical::Bottom),
-						),
-					)
-					.push(controls),
+				row().push(pick_list).spacing(20).push(
+					Row::new().spacing(5).push(text_input).push(
+						Text::new("µm")
+							.height(Length::Units(40))
+							.vertical_alignment(alignment::Vertical::Bottom),
+					),
+				),
 			)
-			.push(slider_f)
 			.spacing(20)
-			// .push(
-			// 	Row::new()
-			// 		.push(Text::new("Frequency").width(Length::Units(140)))
-			// 		.spacing(10)
-			// 		.push(slider_f.width(Length::Units(140)))
-			// 		.spacing(10)
-			// 		.push(Text::new(format!("{}", self.slider_value_f))),
-			// )
+			.push(slider_f)
 			.push(horizontal_rule(10))
 			.push(result_display);
-
-		// let content: Element<_> = content.into();
-
-		// let content = if debug {
-		// 	content.explain(Color::BLACK)
-		// } else {
-		// 	content
-		// };
-
-		// Container::new(content)
-		// 	.padding(20)
-		// 	.width(Length::Fill)
-		// 	.height(Length::Fill)
-		// 	.into()
 
 		content
 	}

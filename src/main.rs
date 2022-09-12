@@ -27,7 +27,7 @@ pub enum Message {
 	SceneMessage(SceneMessage),
 }
 
-impl Sandbox for App {
+impl<'a> Sandbox for App {
 	type Message = Message;
 
 	fn new() -> Self {
