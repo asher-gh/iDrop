@@ -14,6 +14,8 @@ use crate::{graphics::Droplet, logo, ICONS};
 
 use super::SceneMessage;
 
+const MESSAGE: &str = "This screen allows to get predictions for µ-fluidic droplet characteristics for the given parameters. The models are populated in the drop-down menu with 3 pre-trained models available for 100µm, 190µm, and 275µm channels. You can add create new models in the creation and training window. All newly created models will be available in this section.";
+
 pub struct PredictionUI {
 	pub selection: Option<Device>,
 	pub slider_value_f: f32,
@@ -209,22 +211,21 @@ impl PredictionUI {
 		);
 
 		content = content
-			.push(
-				row()
-					.push(logo(75, ContentFit::Contain))
-					.push(Space::with_width(Length::Fill)), // .push(Text::new("Model Creation and Training")),
-			)
+			.push(Text::new(MESSAGE))
 			.spacing(14)
 			.push(
-				row().push(pick_list).spacing(20).push(
-					Row::new().spacing(5).push(text_input).push(
-						Text::new("µm")
-							.height(Length::Units(40))
-							.vertical_alignment(alignment::Vertical::Bottom),
+				row()
+					.push(pick_list)
+					.push(Space::with_width(Length::Fill))
+					.push(
+						Row::new().spacing(5).push(text_input).push(
+							Text::new("µm")
+								.height(Length::Units(40))
+								.vertical_alignment(alignment::Vertical::Bottom),
+						),
 					),
-				),
 			)
-			.spacing(20)
+			// .spacing(20)
 			.push(slider_f)
 			.push(horizontal_rule(10))
 			.push(result_display);

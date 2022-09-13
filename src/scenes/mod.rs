@@ -91,8 +91,8 @@ impl<'a> Scene {
 
 	fn container(title: &str) -> Column<'a, SceneMessage> {
 		column()
-			.spacing(20)
 			.push(text(title).size(50))
+			.spacing(20)
 			.height(Length::Units(600))
 	}
 }

@@ -7,8 +7,11 @@ use iced::{ContentFit, Font, Length, Settings};
 use scenes::{Scene, SceneMessage};
 fn main() -> iced::Result {
 	App::run(Settings {
-		default_font: Some(include_bytes!("../assets/fonts/Montserrat-Regular.ttf")),
+		default_font: Some(include_bytes!(
+			"../assets/fonts/Poppins/Poppins-Regular.ttf"
+		)),
 		antialiasing: true,
+        default_text_size: 24,
 		..Settings::default()
 	})
 }

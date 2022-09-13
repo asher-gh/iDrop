@@ -2,16 +2,16 @@ use std::path::PathBuf;
 
 use iced::{
 	pure::{
-		button, horizontal_rule, pick_list, row, text_input, toggler,
+		button, column, horizontal_rule, pick_list, row, text_input, toggler,
 		widget::{Column, PickList, Row, Text},
 	},
-	ContentFit, Length, Space,
+	Font, Length, Space,
 };
 use native_dialog::FileDialog;
 
 const MESSAGE: &str = "Welcome to the model creation and training facility. Please select one of the previously created models. If you want to create a new model, check the toggle and provide a name for the model. The model will be created and trained with the provided data (CSV) and saved in the database. You can then select the model in the prediction screen and it will be available to retrain with new data next time.";
 
-use crate::logo;
+// use crate::logo;
 
 use super::SceneMessage;
 
@@ -59,18 +59,8 @@ impl<'a> TrainingUI {
 			SceneMessage::GoPressed => {}
 
 			SceneMessage::SelectCSV => {
-				// let path = FileDialog::new()
-				// 	.set_location("~/Desktop")
-				// 	.add_filter("PNG Image", &["png"])
-				// 	.add_filter("JPEG Image", &["jpg", "jpeg"])
-				// 	.show_open_single_file()
-				// 	.unwrap();
-				//
-				// if let Some(path) = path_buf {
-				// 	println!("{:?}", path);
-				//                 self.data_path = Some(path.to_str);
-				// }
 				self.data_path = FileDialog::new()
+					.add_filter("CSV File", &["csv"])
 					.show_open_single_file()
 					.unwrap()
 					.to_owned();
@@ -108,11 +98,13 @@ impl<'a> TrainingUI {
 		.padding(10)
 		.width(Length::Units(250));
 
-		// let select_csv_btn: Button<SceneMessage> = Button::new("Select CSV file");
+		let mut file_selection: Row<SceneMessage> = row()
+			.push(button("CSV").on_press(SceneMessage::SelectCSV))
+			.push(Space::with_width(Length::Fill));
 
 		// --------------------ASSEMBLING--------------------
 
-		let mut content = Column::new().height(Length::Fill);
+		// let mut content = Column::new().height(Length::Fill);
 
 		let mut controls = row()
 			.push(toggle_create)
@@ -125,19 +117,23 @@ impl<'a> TrainingUI {
 			controls = controls.push(pick_list);
 		}
 
-		content = content
-			.push(
-				row()
-					.push(logo(40, ContentFit::Contain))
-					.push(Space::with_width(Length::Fill)),
-			)
+		if let Some(file_path) = &self.data_path {
+			let file_name = file_path.file_name().unwrap().to_str().unwrap();
+			file_selection = file_selection.push(Text::new(file_name).font(BOLD));
+		}
+
+		column()
+			.height(Length::Fill)
 			.push(Text::new(MESSAGE))
 			.spacing(25)
 			.push(controls)
+			.push(file_selection)
 			.spacing(20)
-			.push(button("CSV").on_press(SceneMessage::SelectCSV))
-			.push(horizontal_rule(10));
-
-		content
+			.push(horizontal_rule(10))
 	}
 }
+
+const BOLD: Font = Font::External {
+	name: "Poppins-Bold",
+	bytes: include_bytes!("../../assets/fonts/Poppins/Poppins-Bold.ttf"),
+};
