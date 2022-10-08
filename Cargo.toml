@@ -5,11 +5,17 @@ edition = "2021"
 
 [dependencies]
 env_logger = "0.8"
-tensorflow = "0.18.0" # Rust language bindings for TensorFlow.
-ndarray = "0.15.4"    # An n-dimensional array for general elements and for numerics. 
-csv = "1.1.6"         # Fast CSV parsing with support for serde.
+pyo3 = { version = "0.16.5", features = ["auto-initialize"] }
+iced = { version = "0.4.2", features = [
+  "image",
+  "debug",
+  "pure",
+  "canvas",
+  "palette",
+] }
 native-dialog = "0.6.3"
-
-[dependencies.iced]
-features = ["image", "debug", "pure", "canvas", "debug", "palette"]
-version = "0.4.2"
+tract-core = "0.17.7"
+tract-onnx = "0.17.7"
+iced_style = "0.4.0"
+lazy_static = "1.4.0" # A macro for declaring lazily evaluated statics in Rust.
+palette = "0.6.1" # Convert and manage colors with a focus on correctness, flexibility and ease of use.
