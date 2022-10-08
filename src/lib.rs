@@ -3,20 +3,20 @@
 
 use iced::canvas::{Cursor, Frame, Geometry, Path, Stroke};
 use iced::pure::widget::canvas::{self, Program};
+use iced::pure::widget::{Button, Canvas, Column, PickList, Row, Text, TextInput, Toggler};
+use iced::pure::{
+	button, column, container, horizontal_rule, horizontal_space, row, scrollable, text,
+	text_input, toggler, Element, Sandbox,
+};
 use iced::pure::{pick_list, vertical_space};
+use iced::{alignment, Color, Font, Length, Point, Rectangle, Space, Vector};
 use iced_style::{button, menu, pick_list, text_input, toggler};
 use native_dialog::FileDialog;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 use std::borrow::Cow;
 use std::path::PathBuf;
-
-use iced::pure::widget::{Button, Canvas, Column, PickList, Row, Text, TextInput, Toggler};
-use iced::pure::{
-	button, column, container, horizontal_rule, horizontal_space, row, scrollable, text,
-	text_input, toggler, Element, Sandbox,
-};
-use iced::{alignment, Color, Font, Length, Point, Rectangle, Space, Vector};
+use tract_onnx::prelude::*;
 
 pub fn create_model(path: String) -> PyResult<()> {
 	let python_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/create_model.py"));
@@ -33,8 +33,6 @@ pub fn create_model(path: String) -> PyResult<()> {
 
 	Ok(())
 }
-
-use tract_onnx::prelude::*;
 
 // -------------------------------------------------- GRAPHICS
 pub struct App {
@@ -185,7 +183,8 @@ impl Scene {
 		match self {
 			Scene::Greeter => Self::welcome(),
 			Scene::Prediction(ui) => Self::container(self.title()).push(ui.view()),
-			Scene::Training(ui) => Self::container(self.title()).push(ui.view()), // Scene::Training => Self::training(), Scene::End => Self::end(),
+			Scene::Training(ui) => Self::container(self.title()).push(ui.view()),
+			// Scene::Training => Self::training(), Scene::End => Self::end(),
 		}
 		.into()
 	}
@@ -262,11 +261,6 @@ impl TrainingUI {
 
 	pub fn view(&self) -> Column<SceneMessage> {
 		// --------------------COMPONENTS--------------------
-		// let pick_list: PickList<UserModel, SceneMessage> = pick_list(
-		// 	&self.models,
-		// 	self.selected_model.clone(),
-		// 	SceneMessage::ModelSelected,
-		// )
 		let pick_list = drop_down(
 			&self.models,
 			self.selected_model.clone(),
@@ -299,8 +293,6 @@ impl TrainingUI {
 
 		// --------------------ASSEMBLING--------------------
 
-		// let mut content = Column::new().height(Length::Fill);
-
 		let mut controls = row()
 			.push(toggle_create)
 			.push(Space::with_width(Length::Fill));
@@ -316,12 +308,7 @@ impl TrainingUI {
 			file_selection = file_selection.push(Text::new(file_name).font(BOLD));
 		}
 
-		// let create_model_btn = button("Create model")
-		// 	.style(Theme::Light)
-		// 	.on_press(SceneMessage::GoPressed);
-		//
-
-		let create_model_btn = btn("New model", SceneMessage::GoPressed);
+		let create_model_btn = btn("Create model", SceneMessage::GoPressed);
 
 		let mut view = column()
 			.height(Length::Fill)
@@ -334,9 +321,6 @@ impl TrainingUI {
 		if *&self.data_path.is_some() && !*&self.model_name.is_empty() {
 			view = view.push(create_model_btn);
 		}
-
-		// view = view.push(go_button.map(SceneMessage::SelectCSV));
-		// }
 
 		view.height(Length::Shrink)
 	}
@@ -392,18 +376,10 @@ const BOLD: Font = Font::External {
 // -------------------------------------------------- PREDICTION UI
 pub struct PredictionUI {
 	selection: Option<Device>,
-	// pub slider_value_f: f32,
 	input_data: PredictionInputs,
 	prediction_data: Option<(f32, f32)>, // pbs,fluosurf
 	user_model_path: Option<PathBuf>,
 	user_model_toggle: bool,
-	// input: String,
-	// dim_b_input: String,
-	// dim_b_input: String,
-	// pub can_continue: bool,
-	// pub computed: bool,
-	// pub models: Option<(Model, Model, Model)>, // (sec_dim, flow, freq)
-	// pub result: (f32, f32, f32, f32),          // (minor, pbs, fluoSurf, freq)
 }
 
 #[derive(Default)]
@@ -414,8 +390,6 @@ struct PredictionInputs {
 	capillary: Option<String>,
 	interfacial: Option<String>,
 }
-
-// impl Default for
 
 impl PredictionUI {
 	fn new() -> Self {
@@ -442,16 +416,7 @@ impl PredictionUI {
 			}
 			SceneMessage::UserModelToggled(value) => self.user_model_toggle = value,
 			SceneMessage::DeviceSelected(device) => {
-				// let model_path = device.model_path();
-
-				// let sec_dim_model = load_model(&model_path.sec_dim);
-				// let flow_model = load_model(&model_path.flow);
-				// let freq_model = load_model(&model_path.freq);
-
 				self.selection = Some(device);
-				// self.can_continue = true;
-				// self.computed = false;
-				// self.models = Some((sec_dim_model, flow_model, freq_model));
 			}
 			SceneMessage::PredictionInputChanged(input) => {
 				let PredictionInputs {
@@ -478,15 +443,6 @@ impl PredictionUI {
 						*interfacial = Some(value);
 					}
 				}
-				// if let PredictionInputs {
-				// 	dim_a,
-				// 	dim_b,
-				// 	capillary,
-				// 	interfacial,
-				// } = &self.inputs
-				// {
-				// 	self.inputs.dim_a = Some(value);
-				// }
 			}
 			SceneMessage::GoPressed => {
 				self.get_inference();
@@ -505,7 +461,6 @@ impl PredictionUI {
 		.placeholder("Choose a device...")
 		.width(Length::Units(200));
 
-		// let user_model_selection = row
 		let mut model_selection = row()
 			.push(
 				tglr(
@@ -567,10 +522,8 @@ impl PredictionUI {
 				*dim_b.as_ref().unwrap_or(&0.),
 			),
 		});
-		// .height(Length::Units(500));
 
 		// -------------------- RESULT
-
 		let mut inference_res: Column<SceneMessage> = column();
 		if let Some((pbs, flu)) = self.prediction_data {
 			inference_res = inference_res
@@ -600,20 +553,13 @@ impl PredictionUI {
 			)
 			.push(inference_res);
 
-		// if let (Ok(pbs), Ok(flu)) = (dim_a, dim_b) {
-		// 	result = result.push(container(
-		// 		column()
-		// 			.push(text(format!("{pbs}")))
-		// 			.push(text(format!("{flu}"))),
-		// 	))
-		// };
-
 		// -------------------- FINAL
+		/*
+		 * Sadly no emoji support at the moment in iced
+		 * however, I could use a explicit glyphs from fontawesome
+		 */
 
 		let mut view = column().spacing(10).push(model_selection);
-		// sadly no emoji support at the moment in iced
-		// however, I could use a explicit glyphs from fontawesome
-		// .push(text("Work in Progress"))
 
 		if self.user_model_path.is_some() {
 			let file_name = self
@@ -628,7 +574,6 @@ impl PredictionUI {
 
 			view = view.push(
 				row()
-					// .push(horizontal_rule(1))
 					.push(text("Selected model"))
 					.push(horizontal_space(Length::Fill))
 					.push(text(file_name).font(BOLD)),
@@ -657,10 +602,6 @@ impl PredictionUI {
 				.into_optimized()?
 				.into_runnable()?;
 
-			// Generate some input data for model
-			// let mut rng = thread_rng();
-			// let vals: Vec<_> = (0..1000).map(|_| rng.gen::<f32>()).collect();
-
 			let vals: Vec<f32> = vec![dim_a.unwrap(), dim_b.unwrap(), freq.unwrap()];
 
 			let input = tract_ndarray::arr1(&vals).into_shape((1, 3)).unwrap();
@@ -670,13 +611,8 @@ impl PredictionUI {
 
 			let to_show = result[0].to_array_view::<f32>()?;
 
-			// let to_show:f32 = *result[0].to_scalar()?;
-
 			let out = to_show.as_slice().unwrap();
 
-			// println!("{}", out[0]);
-			// println!("pbs: {:?}", out[0]);
-			// println!("flu: {:?}", out[1]);
 			self.prediction_data = Some((out[0], out[1]));
 		}
 		Ok(())
@@ -736,12 +672,10 @@ pub struct Droplet {
 	pub radii: (f32, f32),
 }
 
-// Then, we implement the `Program` trait
 impl Program<SceneMessage> for Droplet {
 	type State = ();
 
 	fn draw(&self, _state: &Self::State, bounds: Rectangle, _cursor: Cursor) -> Vec<Geometry> {
-		// We prepare a new `Frame`
 		let mut frame = Frame::new(bounds.size());
 		let center = frame.center();
 		let stroke_width = 1.0;
@@ -753,7 +687,6 @@ impl Program<SceneMessage> for Droplet {
 		let drop_outline = Color::from_rgb8(100, 100, 100);
 
 		let (mut x, mut y) = self.radii;
-		// let (mut x, mut y) = (80.0f32, 70.0f32);
 
 		let aspect = x / y;
 
@@ -792,7 +725,6 @@ impl Program<SceneMessage> for Droplet {
 		let stroke = Stroke {
 			width: stroke_width,
 			color: drop_outline,
-			// line_cap: LineCap::Round,
 			..Stroke::default()
 		};
 
@@ -903,16 +835,6 @@ impl button::StyleSheet for Theme {
 		};
 
 		from_pair(palette.primary.strong)
-		// match style {
-		// 	Button::Primary => from_pair(palette.primary.strong),
-		// 	Button::Secondary => from_pair(palette.secondary.base),
-		// 	Button::Positive => from_pair(palette.success.base),
-		// 	Button::Destructive => from_pair(palette.danger.base),
-		// 	Button::Text => button::Style {
-		// 		text_color: palette.background.base.text,
-		// 		..appearance
-		// 	},
-		// }
 	}
 
 	fn hovered(&self) -> button::Style {
@@ -924,32 +846,12 @@ impl button::StyleSheet for Theme {
 			..active
 		}
 	}
-	//
-	// fn hovered(&self, style: Self::Style) -> button::Appearance {
-	// 	let active = self.active(style);
-	// 	let palette = self.extended_palette();
-	//
-	// 	let background = match style {
-	// 		Button::Primary => Some(palette.primary.base.color),
-	// 		Button::Secondary => Some(palette.background.strong.color),
-	// 		Button::Positive => Some(palette.success.strong.color),
-	// 		Button::Destructive => Some(palette.danger.strong.color),
-	// 		Button::Text => None,
-	// 	};
-	//
-	// 	button::Appearance {
-	// 		background: background.map(Background::from),
-	// 		..active
-	// 	}
-	// }
 }
 
 /*
  * Toggler
  */
 impl toggler::StyleSheet for Theme {
-	// type Style = ();
-	//
 	fn active(&self, is_active: bool) -> toggler::Style {
 		let palette = self.extended_palette();
 
@@ -1115,16 +1017,3 @@ fn tinput<'a, M: Clone>(
 ) -> TextInput<'a, M> {
 	text_input(place_holder, value, on_change).style(Theme::Light)
 }
-
-// pub fn pick_list<'a, Message, Renderer, T>(
-// 	options: impl Into<Cow<'a, [T]>>,
-// 	selected: Option<T>,
-// 	on_selected: impl Fn(T) -> Message + 'a,
-// ) -> PickList<'a, T, Message, Renderer>
-// where
-// 	T: ToString + Eq + 'static,
-// 	[T]: ToOwned<Owned = Vec<T>>,
-// 	Renderer: iced::Renderer,
-// {
-// 	PickList::new(options, selected, on_selected)
-// }

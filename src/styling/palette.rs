@@ -1,7 +1,3 @@
-// use iced_core::Color;
-
-// use crate::Color;
-// use iced::Color;
 use iced_style::Color;
 use lazy_static::lazy_static;
 use palette::{FromColor, Hsl, Mix, RelativeContrast, Srgb};
