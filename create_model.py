@@ -9,7 +9,7 @@ from numpy import genfromtxt
 csv_path = ""
 
 
-def new_model(csv_path):
+def new_model(csv_path, model_name="new_model"):
     print("CSV path: " + csv_path)
 
     data = genfromtxt(
@@ -78,4 +78,4 @@ def new_model(csv_path):
     # result = model.predict([[82, 82, 575]])
     # print(result)
     onnx_model = onnxmltools.convert_keras(model)
-    onnxmltools.utils.save_model(onnx_model, "model_testing.onnx")
+    onnxmltools.utils.save_model(onnx_model, model_name + ".onnx")

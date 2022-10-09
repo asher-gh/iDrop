@@ -18,13 +18,13 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 use tract_onnx::prelude::*;
 
-pub fn create_model(path: String) -> PyResult<()> {
+pub fn create_model(path: String, model_name: &str) -> PyResult<()> {
 	let python_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/create_model.py"));
 	let from_py: PyResult<_> = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
 		let script = PyModule::from_code(py, python_code, "", "")?;
 		let path = PyString::new(py, &path);
 		let new_model: Py<PyAny> = script.getattr("new_model")?.into();
-		new_model.call1(py, (path,))
+		new_model.call1(py, (path, model_name))
 	});
 
 	if let Err(e) = from_py {
@@ -215,6 +215,7 @@ struct TrainingUI {
 	pub data_path: Option<PathBuf>,
 	pub models: Vec<UserModel>,
 	pub creation_toggle: bool,
+	model_save_path: Option<PathBuf>,
 }
 impl TrainingUI {
 	pub fn new() -> Self {
@@ -225,6 +226,7 @@ impl TrainingUI {
 			data_path: None,
 			models: Vec::new(), // add persistance later
 			creation_toggle: false,
+			model_save_path: None,
 		}
 	}
 
@@ -232,6 +234,9 @@ impl TrainingUI {
 		match msg {
 			SceneMessage::ModelSelected(model) => {
 				self.selected_model = Some(model);
+			}
+			SceneMessage::SelectModelSavePath => {
+				self.model_save_path = FileDialog::new().show_open_single_dir().unwrap();
 			}
 
 			SceneMessage::InputChanged(value) => self.model_name = value,
@@ -246,11 +251,18 @@ impl TrainingUI {
 			SceneMessage::CreateToggled(value) => self.creation_toggle = value,
 
 			SceneMessage::GoPressed => {
-				println!("Go pressed");
-
 				if let Some(pathbuf) = &self.data_path {
 					let path = pathbuf.to_str().unwrap();
-					let _x = create_model(String::from(path));
+					// let _x = create_model(String::from(path), &self.model_name);
+					let model_name = format!("{}", self.model_name);
+
+					let model_name_path = if let Some(save_path) = &self.model_save_path {
+						format!("{}/{}", save_path.to_str().unwrap(), model_name)
+					} else {
+						model_name
+					};
+
+					create_model(String::from(path), &model_name_path);
 				} else {
 					println!("python script not called");
 				};
@@ -291,6 +303,13 @@ impl TrainingUI {
 			.push(btn("Load data", SceneMessage::SelectCSV))
 			.push(Space::with_width(Length::Fill));
 
+		let mut save_path: Row<SceneMessage> = row()
+			.push(btn(
+				"Model save location",
+				SceneMessage::SelectModelSavePath,
+			))
+			.push(Space::with_width(Length::Fill));
+
 		// --------------------ASSEMBLING--------------------
 
 		let mut controls = row()
@@ -305,7 +324,13 @@ impl TrainingUI {
 
 		if let Some(file_path) = &self.data_path {
 			let file_name = file_path.file_name().unwrap().to_str().unwrap();
+			file_selection = file_selection.push(Text::new("CSV file: "));
 			file_selection = file_selection.push(Text::new(file_name).font(BOLD));
+		}
+
+		if let Some(path) = &self.model_save_path {
+			let path = path.to_str().unwrap();
+			save_path = save_path.push(Text::new(format!("Saving to {}", path)));
 		}
 
 		let create_model_btn = btn("Create model", SceneMessage::GoPressed);
@@ -315,6 +340,7 @@ impl TrainingUI {
 			.spacing(25)
 			.push(controls)
 			.push(file_selection)
+			.push(save_path)
 			.spacing(20)
 			.push(horizontal_rule(10));
 
@@ -339,6 +365,7 @@ pub enum SceneMessage {
 	CreateToggled(bool),
 	InputChanged(String),
 	SelectCSV,
+	SelectModelSavePath,
 	ModelSelected(UserModel),
 	// --------------------
 	DeviceSelected(Device),
