@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use tract_onnx::prelude::*;
 
 pub fn create_model(path: String, model_name: &str) -> PyResult<()> {
-	let python_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/create_model.py"));
+	let python_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/create_model.py"));
 	let from_py: PyResult<_> = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
 		let script = PyModule::from_code(py, python_code, "", "")?;
 		let path = PyString::new(py, &path);
