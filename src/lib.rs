@@ -1,4 +1,3 @@
-// #![allow(unused)]
 #![allow(unused_must_use, dead_code)]
 
 use iced::canvas::{Cursor, Frame, Geometry, Path, Stroke};
@@ -443,6 +442,7 @@ impl PredictionUI {
 			}
 			SceneMessage::UserModelToggled(value) => self.user_model_toggle = value,
 			SceneMessage::DeviceSelected(device) => {
+				self.user_model_path = Some(PathBuf::from(device.path()));
 				self.selection = Some(device);
 			}
 			SceneMessage::PredictionInputChanged(input) => {
@@ -666,18 +666,31 @@ impl PredictionUI {
 pub enum Device {
 	CH100,
 	CH190,
-	CH270,
+	CH275,
 }
 
 impl Device {
-	const ALL: [Self; 3] = [Device::CH100, Device::CH190, Device::CH270];
+	const ALL: [Self; 3] = [Device::CH100, Device::CH190, Device::CH275];
 
 	fn max_value(&self) -> f32 {
 		match self {
 			Device::CH100 => 100.0,
 			Device::CH190 => 190.0,
-			Device::CH270 => 270.0,
+			Device::CH275 => 275.0,
 		}
+	}
+
+	fn path(&self) -> String {
+		let model_file = match self {
+			Device::CH100 => "100.onnx",
+			Device::CH190 => "190.onnx",
+			Device::CH275 => "275.onnx",
+		};
+
+		format!(
+			"{}{model_file}",
+			concat!(env!("CARGO_MANIFEST_DIR"), "/assets/models/")
+		)
 	}
 }
 impl std::fmt::Display for Device {
@@ -688,7 +701,7 @@ impl std::fmt::Display for Device {
 			match self {
 				Device::CH100 => "100",
 				Device::CH190 => "190",
-				Device::CH270 => "270",
+				Device::CH275 => "275",
 			}
 		)
 	}
