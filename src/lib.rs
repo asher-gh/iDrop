@@ -14,6 +14,7 @@ use native_dialog::FileDialog;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 use std::borrow::Cow;
+use std::error::Error;
 use std::path::PathBuf;
 use tract_onnx::prelude::*;
 
@@ -27,7 +28,8 @@ pub fn create_model(path: String, model_name: &str) -> PyResult<()> {
 	});
 
 	if let Err(e) = from_py {
-		println!("{e}");
+		// println!("{e}");
+		return Err(e);
 	};
 
 	Ok(())
@@ -215,6 +217,7 @@ struct TrainingUI {
 	pub models: Vec<UserModel>,
 	pub creation_toggle: bool,
 	model_save_path: Option<PathBuf>,
+	error: Result<(), Box<dyn Error>>,
 }
 impl TrainingUI {
 	pub fn new() -> Self {
@@ -224,8 +227,9 @@ impl TrainingUI {
 			_new_model: false,
 			data_path: None,
 			models: Vec::new(), // add persistance later
-			creation_toggle: false,
+			creation_toggle: true,
 			model_save_path: None,
+			error: Ok(()),
 		}
 	}
 
@@ -261,7 +265,9 @@ impl TrainingUI {
 						model_name
 					};
 
-					create_model(String::from(path), &model_name_path);
+					if let Err(e) = create_model(String::from(path), &model_name_path) {
+						self.error = Err(Box::from(e));
+					};
 				} else {
 					println!("python script not called");
 				};
@@ -347,6 +353,10 @@ impl TrainingUI {
 			view = view.push(create_model_btn);
 		}
 
+		if let Err(e) = &self.error {
+			view = view.push(Text::new(e.to_string()).color(Color::from_rgb(255., 0., 0.)));
+		};
+
 		view.height(Length::Shrink)
 	}
 }
@@ -406,6 +416,7 @@ pub struct PredictionUI {
 	prediction_data: Option<(f32, f32)>, // pbs,fluosurf
 	user_model_path: Option<PathBuf>,
 	user_model_toggle: bool,
+	error: Result<(), Box<dyn Error>>,
 }
 
 #[derive(Default)]
@@ -425,6 +436,7 @@ impl PredictionUI {
 			prediction_data: None,
 			user_model_path: None,
 			user_model_toggle: false,
+			error: Ok(()),
 		}
 	}
 
@@ -453,26 +465,39 @@ impl PredictionUI {
 					freq,
 					interfacial,
 				} = &mut self.input_data;
+
 				match input {
 					PredictionInput::DimA(value) => {
-						*dim_a = Some(value);
+						if value.parse::<f32>().is_ok() {
+							*dim_a = Some(value)
+						};
 					}
 					PredictionInput::DimB(value) => {
-						*dim_b = Some(value);
+						if value.parse::<f32>().is_ok() {
+							*dim_b = Some(value);
+						};
 					}
 					PredictionInput::Capillary(value) => {
-						*capillary = Some(value);
+						if value.parse::<f32>().is_ok() {
+							*capillary = Some(value);
+						};
 					}
 					PredictionInput::Freq(value) => {
-						*freq = Some(value);
+						if value.parse::<f32>().is_ok() {
+							*freq = Some(value);
+						};
 					}
 					PredictionInput::Interfacial(value) => {
-						*interfacial = Some(value);
+						if value.parse::<f32>().is_ok() {
+							*interfacial = Some(value);
+						};
 					}
 				}
 			}
 			SceneMessage::GoPressed => {
-				self.get_inference();
+				if let Err(e) = self.get_inference() {
+					self.error = Err(Box::from(e));
+				};
 			}
 			_ => {}
 		}
@@ -517,7 +542,7 @@ impl PredictionUI {
 			self.input_data.interfacial.as_deref().unwrap_or(""),
 		);
 
-		let inputs = column()
+		let mut inputs = column()
 			.push(horizontal_rule(1))
 			.push(Self::input_row("First dimension (µm)", dim_a, move |s| {
 				SceneMessage::PredictionInputChanged(PredictionInput::DimA(s))
@@ -536,9 +561,17 @@ impl PredictionUI {
 				interfacial,
 				move |s| SceneMessage::PredictionInputChanged(PredictionInput::Interfacial(s)),
 			))
-			.spacing(10)
-			.push(btn("Predict Flow", SceneMessage::GoPressed))
-			.push(horizontal_rule(1));
+			.spacing(10);
+
+		if self.user_model_path.is_some()
+			&& self.input_data.dim_a.is_some()
+			&& self.input_data.dim_b.is_some()
+			&& self.input_data.freq.is_some()
+		{
+			inputs = inputs.push(btn("Predict Flow", SceneMessage::GoPressed));
+		}
+
+		inputs = inputs.push(horizontal_rule(1));
 
 		// -------------------- CANVAS
 		let (dim_a, dim_b) = (dim_a.trim().parse::<f32>(), dim_b.trim().parse::<f32>());
@@ -566,6 +599,10 @@ impl PredictionUI {
 						.push(horizontal_space(Length::Fill))
 						.push(text(format!("{flu} µL/min"))),
 				);
+		};
+
+		if let Err(e) = &self.error {
+			inference_res = column().push(Text::new(e.to_string()));
 		};
 
 		let result = row()
@@ -607,7 +644,7 @@ impl PredictionUI {
 			);
 		}
 
-		view.push(inputs).push(result)
+		view.push(Text::new("Please select the model and enter the following parameters. The button will not be available until all required parameters are provided.")).push(inputs).push(result)
 	}
 
 	// -------------------- UTILITY
