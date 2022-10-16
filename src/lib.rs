@@ -2,13 +2,15 @@
 
 use iced::canvas::{Cursor, Frame, Geometry, Path, Stroke};
 use iced::pure::widget::canvas::{self, Program};
-use iced::pure::widget::{Button, Canvas, Column, PickList, Row, Text, TextInput, Toggler};
+use iced::pure::widget::{
+	Button, Canvas, Column, Container, Image, PickList, Row, Text, TextInput, Toggler,
+};
 use iced::pure::{
 	button, column, container, horizontal_rule, horizontal_space, row, scrollable, text,
 	text_input, toggler, Element, Sandbox,
 };
 use iced::pure::{pick_list, vertical_space};
-use iced::{alignment, Color, Font, Length, Point, Rectangle, Space, Vector};
+use iced::{alignment, Color, ContentFit, Font, Length, Point, Rectangle, Space, Vector};
 use iced_style::{button, menu, pick_list, text_input, toggler};
 use native_dialog::FileDialog;
 use pyo3::prelude::*;
@@ -28,7 +30,6 @@ pub fn create_model(path: String, model_name: &str) -> PyResult<()> {
 	});
 
 	if let Err(e) = from_py {
-		// println!("{e}");
 		return Err(e);
 	};
 
@@ -76,17 +77,23 @@ impl Sandbox for App {
 
 		let theme = self.theme;
 
-		let mut controls = row();
+		let mut controls = row()
+			// .spacing(20)
+			// .align_items(iced::Alignment::Center)
+			.push(horizontal_space(Length::Fill));
 
 		if scenes.has_previous() {
-			controls = controls.push(btn("Back", Message::BackPressed));
+			controls = controls.push(btn("Back", Message::BackPressed)).push(horizontal_space(Length::Units(15)));
 		}
-
-		controls = controls.push(horizontal_space(Length::Fill));
 
 		if scenes.can_continue() {
 			controls = controls.push(button("Next").style(theme).on_press(Message::NextPressed));
 		}
+
+		controls = controls
+			.push(horizontal_space(Length::Fill))
+			.push(logo(40, ContentFit::Contain));
+		// .push(horizontal_space(Length::Fill));
 
 		let content: Element<_> = column()
 			.push(scenes.view().map(Message::SceneMessage))
@@ -269,7 +276,7 @@ impl TrainingUI {
 						self.error = Err(Box::from(e));
 					};
 				} else {
-					println!("python script not called");
+					println!("path to training data not set");
 				};
 			}
 			_ => {}
@@ -1075,22 +1082,40 @@ fn tglr<'a, T>(label: &'a str, is_checked: bool, msg: impl Fn(bool) -> T + 'a) -
 		.spacing(5)
 }
 
-fn drop_down<'a, M, T>(
-	opt: impl Into<Cow<'a, [T]>>,
-	selected: Option<T>,
-	on_selected: impl Fn(T) -> M + 'a,
-) -> PickList<'a, T, M>
-where
-	T: ToString + Eq + 'static,
-	[T]: ToOwned<Owned = Vec<T>>,
-{
-	pick_list(opt, selected, on_selected).style(Theme::Light)
-}
-
 fn tinput<'a, M: Clone>(
 	place_holder: &str,
 	value: &str,
 	on_change: impl Fn(String) -> M + 'a,
 ) -> TextInput<'a, M> {
 	text_input(place_holder, value, on_change).style(Theme::Light)
+}
+
+fn logo<'a, M: Clone + 'a>(height: u16, content_fit: ContentFit) -> Container<'a, M> {
+	container(
+		// This should go away once we unify resource loading on native platforms
+		if cfg!(target_arch = "wasm32") {
+			Image::new("assets/images/logo.jpg")
+		} else {
+			Image::new(format!(
+				"{}/assets/images/logo.jpg",
+				env!("CARGO_MANIFEST_DIR"),
+			))
+		}
+		.height(Length::Units(height))
+		.content_fit(content_fit),
+	)
+	.width(Length::Shrink)
+}
+
+fn drop_down<'a, M, T, U>(
+	opt: impl Into<Cow<'a, [T]>>,
+	selected: Option<T>,
+	on_selected: U,
+) -> PickList<'a, T, M>
+where
+	T: ToString + Eq + 'static,
+	[T]: ToOwned<Owned = Vec<T>>,
+	U: Fn(T) -> M + 'a,
+{
+	pick_list(opt, selected, on_selected).style(Theme::Light)
 }

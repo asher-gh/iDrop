@@ -16,9 +16,9 @@ impl Palette {
 		background: Color::WHITE,
 		text: Color::BLACK,
 		primary: Color::from_rgb(
-			0x5E as f32 / 255.0,
-			0x7C as f32 / 255.0,
-			0xE2 as f32 / 255.0,
+			0x27 as f32 / 255.0,
+			0x53 as f32 / 255.0,
+			0x32 as f32 / 255.0,
 		),
 		success: Color::from_rgb(
 			0x12 as f32 / 255.0,
@@ -34,9 +34,9 @@ impl Palette {
 
 	pub const DARK: Self = Self {
 		background: Color::from_rgb(
-			0x20 as f32 / 255.0,
-			0x22 as f32 / 255.0,
-			0x25 as f32 / 255.0,
+			0x34 as f32 / 255.0,
+			0x6f as f32 / 255.0,
+			0x42 as f32 / 255.0,
 		),
 		text: Color::from_rgb(0.90, 0.90, 0.90),
 		primary: Color::from_rgb(
