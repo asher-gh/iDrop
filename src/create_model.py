@@ -71,7 +71,7 @@ def new_model(csv_path, model_name="new_model"):
         y_train,
         batch_size=10,
         validation_split=0.1,
-        epochs=10,
+        epochs=100,
         # verbose=0
     )
 

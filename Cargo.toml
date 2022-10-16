@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 env_logger = "0.8"
-pyo3 = { version = "0.16.5", features = ["auto-initialize"] }
+pyo3 = { version = "0.17.2", features = ["auto-initialize"] }
 iced = { version = "0.4.2", features = [
   "image",
   "debug",

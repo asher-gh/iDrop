@@ -18,9 +18,10 @@ use pyo3::types::PyString;
 use std::borrow::Cow;
 use std::error::Error;
 use std::path::PathBuf;
+use std::thread;
 use tract_onnx::prelude::*;
 
-pub fn create_model(path: String, model_name: &str) -> PyResult<()> {
+pub fn create_model(path: String, model_name: String) -> PyResult<()> {
 	let python_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/create_model.py"));
 	let from_py: PyResult<_> = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
 		let script = PyModule::from_code(py, python_code, "", "")?;
@@ -83,7 +84,9 @@ impl Sandbox for App {
 			.push(horizontal_space(Length::Fill));
 
 		if scenes.has_previous() {
-			controls = controls.push(btn("Back", Message::BackPressed)).push(horizontal_space(Length::Units(15)));
+			controls = controls
+				.push(btn("Back", Message::BackPressed))
+				.push(horizontal_space(Length::Units(15)));
 		}
 
 		if scenes.can_continue() {
@@ -253,7 +256,7 @@ impl TrainingUI {
 
 			SceneMessage::SelectCSV => {
 				self.data_path = FileDialog::new()
-					.add_filter("CSV File", &["csv"])
+					.add_filter("", &["csv"])
 					.show_open_single_file()
 					.unwrap();
 			}
@@ -262,7 +265,7 @@ impl TrainingUI {
 
 			SceneMessage::GoPressed => {
 				if let Some(pathbuf) = &self.data_path {
-					let path = pathbuf.to_str().unwrap();
+					let path = pathbuf.to_str().unwrap().to_string();
 					// let _x = create_model(String::from(path), &self.model_name);
 					let model_name = format!("{}", self.model_name);
 
@@ -272,9 +275,17 @@ impl TrainingUI {
 						model_name
 					};
 
-					if let Err(e) = create_model(String::from(path), &model_name_path) {
-						self.error = Err(Box::from(e));
-					};
+					let x = thread::spawn(move || {
+						create_model(path, model_name_path)
+						// create_model(String::from("something"), "something");
+						// self.error = Err(Box::from(e));
+					});
+
+					// x.join();
+
+				// if let Err(e) = create_model(String::from(path), &model_name_path) {
+				// 	self.error = Err(Box::from(e));
+				// };
 				} else {
 					println!("path to training data not set");
 				};
