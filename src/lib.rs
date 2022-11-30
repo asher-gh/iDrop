@@ -486,12 +486,12 @@ impl PredictionUI {
 
 				match input {
 					PredictionInput::DimA(value) => {
-						if value.parse::<f32>().is_ok() {
+						if value.parse::<f32>().is_ok() || value.is_empty() {
 							*dim_a = Some(value)
 						};
 					}
 					PredictionInput::DimB(value) => {
-						if value.parse::<f32>().is_ok() {
+						if value.parse::<f32>().is_ok() || value.is_empty() {
 							*dim_b = Some(value);
 						};
 					}
@@ -562,13 +562,13 @@ impl PredictionUI {
 
 		let mut inputs = column()
 			.push(horizontal_rule(1))
-			.push(Self::input_row("First dimension (µm)", dim_a, move |s| {
+			.push(Self::input_row("Droplet length (µm)", dim_a, move |s| {
 				SceneMessage::PredictionInputChanged(PredictionInput::DimA(s))
 			}))
-			.push(Self::input_row("Second dimension (µm)", dim_b, move |s| {
+			.push(Self::input_row("Droplet height (µm)", dim_b, move |s| {
 				SceneMessage::PredictionInputChanged(PredictionInput::DimB(s))
 			}))
-			.push(Self::input_row("Frequency", freq, move |s| {
+			.push(Self::input_row("Frequency (Hz)", freq, move |s| {
 				SceneMessage::PredictionInputChanged(PredictionInput::Freq(s))
 			}))
 			.push(Self::input_row("Capillary number", capillary, move |s| {
@@ -596,8 +596,8 @@ impl PredictionUI {
 
 		let graphical_element: Canvas<SceneMessage, Droplet> = Canvas::new(Droplet {
 			radii: (
-				*dim_a.as_ref().unwrap_or(&0.),
 				*dim_b.as_ref().unwrap_or(&0.),
+				*dim_a.as_ref().unwrap_or(&0.),
 			),
 		});
 
