@@ -281,7 +281,7 @@ impl TrainingUI {
 						// self.error = Err(Box::from(e));
 					});
 
-					// x.join();
+				// x.join();
 
 				// if let Err(e) = create_model(String::from(path), &model_name_path) {
 				// 	self.error = Err(Box::from(e));

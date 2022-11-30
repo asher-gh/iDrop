@@ -1,5 +1,7 @@
-from keras import layers
+import tensorflow as tf
 from tensorflow import keras
+from keras import callbacks
+from keras import layers
 import onnxmltools
 
 # for reading and parsing csv
@@ -65,6 +67,11 @@ def new_model(csv_path, model_name="new_model"):
         # metrics=[keras.metrics.SparseCategoricalAccuracy()],
     )
 
+    # Addition callback for training progress
+    epoch_print_callback = callbacks.LambdaCallback(
+        on_epoch_end=lambda epoch, logs: print(epoch)
+    )
+
     # print("Fit model on training data")
     history = model.fit(
         x_train,
@@ -72,7 +79,8 @@ def new_model(csv_path, model_name="new_model"):
         batch_size=10,
         validation_split=0.1,
         epochs=100,
-        # verbose=0
+        callbacks=[epoch_print_callback],
+        verbose=0,
     )
 
     # result = model.predict([[82, 82, 575]])
