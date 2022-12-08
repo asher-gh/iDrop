@@ -9,7 +9,7 @@ import numpy as np
 from numpy import genfromtxt
 
 
-def new_model(csv_path="", model_name="new_model"):
+def new_model(csv_path, model_name="new_model"):
     print("CSV path: " + csv_path)
 
     data = genfromtxt(
@@ -87,4 +87,4 @@ def new_model(csv_path="", model_name="new_model"):
     onnxmltools.utils.save_model(onnx_model, model_name + ".onnx")
 
 
-new_model("../assets/data/100.csv", "testing")
+# new_model("../assets/data/100.csv", "testing")
