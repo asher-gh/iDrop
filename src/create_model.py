@@ -8,10 +8,8 @@ import onnxmltools
 import numpy as np
 from numpy import genfromtxt
 
-csv_path = ""
 
-
-def new_model(csv_path, model_name="new_model"):
+def new_model(csv_path="", model_name="new_model"):
     print("CSV path: " + csv_path)
 
     data = genfromtxt(
@@ -69,7 +67,7 @@ def new_model(csv_path, model_name="new_model"):
 
     # Addition callback for training progress
     epoch_print_callback = callbacks.LambdaCallback(
-        on_epoch_end=lambda epoch, logs: print(epoch)
+        on_epoch_end=lambda epoch, logs: print(f"\033[1A\033[K{epoch}")
     )
 
     # print("Fit model on training data")
@@ -87,3 +85,6 @@ def new_model(csv_path, model_name="new_model"):
     # print(result)
     onnx_model = onnxmltools.convert_keras(model)
     onnxmltools.utils.save_model(onnx_model, model_name + ".onnx")
+
+
+new_model("../assets/data/100.csv", "testing")
