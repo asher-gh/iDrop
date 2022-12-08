@@ -406,8 +406,8 @@ pub enum PredictionInput {
 	DimA(String),
 	DimB(String),
 	Freq(String),
-	Capillary(String),
-	Interfacial(String),
+	// Capillary(String),
+	// Interfacial(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -495,21 +495,20 @@ impl PredictionUI {
 							*dim_b = Some(value);
 						};
 					}
-					PredictionInput::Capillary(value) => {
-						if value.parse::<f32>().is_ok() {
-							*capillary = Some(value);
-						};
-					}
+					// PredictionInput::Capillary(value) => {
+					// 	if value.parse::<f32>().is_ok() {
+					// 		*capillary = Some(value);
+					// 	};
+					// }
 					PredictionInput::Freq(value) => {
 						if value.parse::<f32>().is_ok() {
 							*freq = Some(value);
 						};
-					}
-					PredictionInput::Interfacial(value) => {
-						if value.parse::<f32>().is_ok() {
-							*interfacial = Some(value);
-						};
-					}
+					} // PredictionInput::Interfacial(value) => {
+					  // 	if value.parse::<f32>().is_ok() {
+					  // 		*interfacial = Some(value);
+					  // 	};
+					  // }
 				}
 			}
 			SceneMessage::GoPressed => {
@@ -571,14 +570,14 @@ impl PredictionUI {
 			.push(Self::input_row("Frequency (Hz)", freq, move |s| {
 				SceneMessage::PredictionInputChanged(PredictionInput::Freq(s))
 			}))
-			.push(Self::input_row("Capillary number", capillary, move |s| {
-				SceneMessage::PredictionInputChanged(PredictionInput::Capillary(s))
-			}))
-			.push(Self::input_row(
-				"Interfacial tension (mN/m)",
-				interfacial,
-				move |s| SceneMessage::PredictionInputChanged(PredictionInput::Interfacial(s)),
-			))
+			// .push(Self::input_row("Capillary number", capillary, move |s| {
+			// 	SceneMessage::PredictionInputChanged(PredictionInput::Capillary(s))
+			// }))
+			// .push(Self::input_row(
+			// 	"Interfacial tension (mN/m)",
+			// 	interfacial,
+			// 	move |s| SceneMessage::PredictionInputChanged(PredictionInput::Interfacial(s)),
+			// ))
 			.spacing(10);
 
 		if self.user_model_path.is_some()
@@ -1129,4 +1128,13 @@ where
 	U: Fn(T) -> M + 'a,
 {
 	pick_list(opt, selected, on_selected).style(Theme::Light)
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::create_model;
+	#[test]
+	fn model_creation() {
+		create_model(String::from("assets/data/100.csv"), String::from("test")).unwrap();
+	}
 }
