@@ -1,4 +1,4 @@
-#![allow(unused_must_use, dead_code)]
+#![allow(unused_must_use, dead_code, unused)]
 
 use iced::canvas::{Cursor, Frame, Geometry, Path, Stroke};
 use iced::pure::widget::canvas::{self, Program};
@@ -21,11 +21,13 @@ use std::path::PathBuf;
 use std::thread;
 use tract_onnx::prelude::*;
 
-pub fn create_model(path: String, model_name: String) -> PyResult<()> {
-	let python_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/create_model.py"));
+pub fn create_model(path: &str, model_name: &str) -> PyResult<()> {
+	let python_code = include_str!("create_model.py");
+
 	let from_py: PyResult<_> = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
 		let script = PyModule::from_code(py, python_code, "", "")?;
-		let path = PyString::new(py, &path);
+		let path = PyString::new(py, path);
+		let model_name = PyString::new(py, model_name);
 		let new_model: Py<PyAny> = script.getattr("new_model")?.into();
 		new_model.call1(py, (path, model_name))
 	});
@@ -265,23 +267,33 @@ impl TrainingUI {
 
 			SceneMessage::GoPressed => {
 				if let Some(pathbuf) = &self.data_path {
-					let path = pathbuf.to_str().unwrap().to_string();
+					let csv_path = pathbuf
+						.to_str()
+						.expect("CSV path not valid or empty")
+						.to_string();
 					// let _x = create_model(String::from(path), &self.model_name);
-					let model_name = format!("{}", self.model_name);
+					// let model_name = format!("{}", self.model_name);
 
-					let model_name_path = if let Some(save_path) = &self.model_save_path {
-						format!("{}/{}", save_path.to_str().unwrap(), model_name)
+					let model_name_path: String = if let Some(save_path) = &self.model_save_path {
+						save_path
+							.join(&self.model_name)
+							.to_str()
+							.expect("Model save path faulty")
+							.to_string()
 					} else {
-						model_name
+						String::from(&self.model_name)
 					};
 
+					dbg!(&csv_path, &model_name_path);
+
 					let x = thread::spawn(move || {
-						create_model(path, model_name_path)
+						create_model(&csv_path, &model_name_path).expect("create model failed");
 						// create_model(String::from("something"), "something");
 						// self.error = Err(Box::from(e));
 					});
 
-				// x.join();
+					// self.error = x.join();
+					x.join();
 
 				// if let Err(e) = create_model(String::from(path), &model_name_path) {
 				// 	self.error = Err(Box::from(e));
@@ -1135,6 +1147,23 @@ mod tests {
 	use crate::create_model;
 	#[test]
 	fn model_creation() {
-		create_model(String::from("assets/data/100.csv"), String::from("test")).unwrap();
+		use std::path::PathBuf;
+		let mut project_dir = PathBuf::from(
+			std::env::var("CARGO_MANIFEST_DIR")
+				.expect("could not get absolute path to current dir"),
+		);
+
+		let csv = project_dir.join("assets/data/100.csv");
+		let model_save_path = project_dir.join("assets/models/test");
+
+		if let Err(msg) = create_model(
+			csv.to_str().expect("could not unwrap csv path"),
+			model_save_path
+				.to_str()
+				.expect("could not unwrap model_save_path"),
+		) {
+			eprintln!("{msg}");
+			panic!();
+		};
 	}
 }

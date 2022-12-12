@@ -9,60 +9,31 @@ import numpy as np
 from numpy import genfromtxt
 
 
-def new_model(csv_path, model_name="new_model"):
+def new_model(csv_path, model_name):
     print("CSV path: " + csv_path)
+    print("Saving model at: " + model_name)
 
     data = genfromtxt(
         csv_path,
         delimiter=",",
         skip_header=1,
-        # dtype=np.float64,
+        dtype=np.float64,
     )
 
     x_train = data[:, [0, 1, 4]]
     y_train = data[:, [2, 3]]
 
     model = keras.Sequential(name="flow_prediction_nn")
-    # model.add(layers.Dense(20, activation="relu", name="input_layer", input_shape=(3,)))
     model.add(layers.Dense(300, input_shape=(3,), activation="sigmoid"))
-    # model.add(layers.Dense(1000, activation="relu"))
-    # model.add(layers.Dense(1200, activation="relu"))
-    # model.add(layers.Dense(1000, activation="relu"))
-    # model.add(layers.Dense(1000, activation="relu"))
-    # model.add(layers.Dense(300, kernel_initializer="he_uniform", activation="relu"))
-    # model.add(layers.Dense(3000, kernel_initializer="he_uniform", activation="sigmoid"))
-    # model.add(layers.Dense(256, activation="relu"))
-    # model.add(layers.Dropout(0.2))
-    # model.add(layers.Dense(256, activation="relu"))
-    # model.add(layers.Dense(256, kernel_initializer="he_uniform", activation="relu"))
     model.add(layers.Dense(100, kernel_initializer="he_uniform", activation="relu"))
     model.add(layers.Dense(1000, kernel_initializer="he_uniform", activation="relu"))
     model.add(layers.Dense(1000, kernel_initializer="he_uniform", activation="relu"))
     model.add(layers.Dense(100, kernel_initializer="he_uniform", activation="relu"))
-    # model.add(layers.Dense(200, kernel_initializer="he_uniform", activation="relu"))
-    # model.add(layers.Dense(10, kernel_initializer="he_uniform", activation="relu"))
-    # model.add(layers.Dense(1000, activation="sigmoid"))
-    # model.add(layers.Dense(1000, activation="sigmoid"))
-    # model.add(layers.Dense(1000, activation="sigmoid"))
-    # model.add(layers.Dense(100, activation="relu"))
-    # model.add(layers.Dense(1000, activation="relu"))
-    # model.add(layers.Dense(100, activation="relu"))
-    # model.add(layers.Dense(100, activation="relu"))
-    # model.add(layers.Dense(10, activation="relu"))
-    # model.add(layers.Dense(200, activation="relu"))
-    # model.add(layers.Dense(100, activation="relu"))
-    # model.add(layers.Dense(10, activation="sigmoid"))
     model.add(layers.Dense(2))
-
-    # print(len(model.layers))
-    # print(layer.weights)
-
-    # model.summary()
 
     model.compile(
         optimizer="adam",
         loss="mae",
-        # metrics=[keras.metrics.SparseCategoricalAccuracy()],
     )
 
     # Addition callback for training progress
@@ -81,10 +52,5 @@ def new_model(csv_path, model_name="new_model"):
         verbose=0,
     )
 
-    # result = model.predict([[82, 82, 575]])
-    # print(result)
     onnx_model = onnxmltools.convert_keras(model)
     onnxmltools.utils.save_model(onnx_model, model_name + ".onnx")
-
-
-# new_model("../assets/data/100.csv", "testing")

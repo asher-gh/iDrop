@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 env_logger = "0.8"
-pyo3 = { version = "0.17.2", features = [
+pyo3 = { version = "0.17.3", features = [
   "auto-initialize",
   # "generate-import-lib",
 ] }
@@ -22,4 +22,3 @@ tract-core = "0.17.7"
 tract-onnx = "0.17.7"
 iced_style = "0.4.0"
 lazy_static = "1.4.0" # A macro for declaring lazily evaluated statics in Rust.
-python3-dll-a = "0.2.6" # Standalone python3(y).dll import library generator
