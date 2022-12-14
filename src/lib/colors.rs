@@ -65,6 +65,7 @@ pub struct Extended {
 	pub danger: Danger,
 }
 
+// https://docs.rs/lazy_static/latest/lazy_static/
 lazy_static! {
 	pub static ref EXTENDED_LIGHT: Extended = Extended::generate(Palette::LIGHT);
 	pub static ref EXTENDED_DARK: Extended = Extended::generate(Palette::DARK);
