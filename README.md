@@ -1,20 +1,32 @@
-# iDrop
+# About
 
-Blazingly fast native cross-platform desktop application for predicting
-microfluidic droplet sizes prediction utility application based on TensorFlow
-and written in Rust.
+Native cross-platform desktop application that assists with training deep learning models
+and inferencing microfluidic droplet sizes from them. 
 
-# Compiling
+# Installation
 
-At the current stage, the application is still in early development phase and
-thus a packaged version is not yet made available. However, you can compile and
-try out for yourself.
-
-```sh
-cargo build --release
+```
+Sadly, as this is a WIP, an installer is not available. 
+However, you can follow the steps below to run the application on your system.
 ```
 
-## Requisites
+1. Clone this repo, or download as zip.
+
+<img src="assets/images/download_proj.jpg" width="350"/>
+
+2. Make sure you have all the dependencies installed on your system.
+   - [Rust](https://www.rust-lang.org/tools/install)
+   - [Python](https://www.python.org/downloads/)
+
+3. Open terminal (MacOS) or cmd (Windows) and navigate to current path.
+
+4. Run the following command to build and run the application
+
+```sh
+cargo run -r
+```
+
+## Troubleshooting
 
 Make sure the following are setup correctly for your system:
 
