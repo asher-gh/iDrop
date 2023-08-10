@@ -5,3 +5,6 @@ Cargo.lock
 **/*.rs.bak
 
 .DS_Store
+
+*.onnx
+.python-version

@@ -1,21 +1,12 @@
-pub mod styling;
-
-use drop_gui::App;
-use iced::pure::Sandbox;
-use iced::Settings;
+use drop_gui::app;
 use std::process;
 
+// Following examples on
+// https://github.com/iced-rs/iced/tree/master/examples
+
 fn main() {
-	if let Err(e) = App::run(Settings {
-		// default_font: Some(include_bytes!(
-		// 	"../assets/fonts/Poppins/Poppins-Regular.ttf"
-		// )),
-		antialiasing: true,
-		default_text_size: 24,
-		..Settings::default()
-	}) {
+	if let Err(e) = app::App::launch() {
 		eprintln!("{e}");
 		process::exit(1);
 	};
 }
-

@@ -3,9 +3,16 @@ name = "drop-gui"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib/mod.rs" # setting lib/mod.rs as the default library location
+
+[[bin]]
+name = "app"
+path = "src/main.rs"
+
 [dependencies]
 env_logger = "0.8"
-pyo3 = { version = "0.16.5", features = ["auto-initialize"] }
+pyo3 = { version = "0.17.3", features = ["auto-initialize"] }
 iced = { version = "0.4.2", features = [
   "image",
   "debug",
@@ -13,9 +20,9 @@ iced = { version = "0.4.2", features = [
   "canvas",
   "palette",
 ] }
+palette = "0.6.1" # Convert and manage colors with a focus on correctness, flexibility and ease of use.
 native-dialog = "0.6.3"
 tract-core = "0.17.7"
 tract-onnx = "0.17.7"
 iced_style = "0.4.0"
 lazy_static = "1.4.0" # A macro for declaring lazily evaluated statics in Rust.
-palette = "0.6.1" # Convert and manage colors with a focus on correctness, flexibility and ease of use.

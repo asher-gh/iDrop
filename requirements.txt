@@ -1,0 +1,16 @@
+fire 
+joblib 
+keras2onnx 
+keras
+onnx 
+onnxconverter-common 
+onnxmltools 
+PyYAML 
+scikit-learn 
+skl2onnx 
+tensorflow-addons 
+tensorflow==2.11.0
+threadpoolctl 
+typeguard 
+tf2onnx 
+protobuf == 3.20.0
